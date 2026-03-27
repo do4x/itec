@@ -3,7 +3,7 @@
 // POSTER MATCHER — Identifies which poster the user photographed
 // ============================================
 // Uses Anthropic Claude Vision API to match a captured photo
-// against our catalog of 9 known posters.
+// against our catalog of 10 known posters.
 //
 // Strategy: We send detailed text descriptions of each poster
 // (not images — too expensive per call). Claude Vision analyzes
@@ -23,6 +23,7 @@ const POSTER_CATALOG = `
 You are a poster identification system. You will receive a photo taken by a phone camera showing a physical poster on a wall. Your job is to identify which poster it is from this catalog:
 
 POSTER CATALOG:
+- afis1: "BOOST YOUR SOCIAL PRESENCE" poster. DARK BLUE/ROYAL BLUE background with 3D floating social media icons (Facebook bubble, Dribbble, Pinterest, LinkedIn, WhatsApp, hearts). Large MEGAPHONE/BULLHORN held by a 3D hand on the right side. White bold text "BOOST YOUR SOCIAL PRESENCE". Subtitle "Captivate Audiences with Our Social Media Magic". White "LEARN MORE" button with arrow. Instagram-style post card showing "17800 Like". <itec> logo top left with social media icons row below it. Very vibrant, 3D rendered style.
 - afis2: "Digital Marketing Agency" poster with RED color scheme. Has 3 circular photo frames on the LEFT side (woman with tablet, desk overhead, man with icons). White background, red circles, bullet points listing "App Development, Creative Designs, Facebook Boosting, Agency". Phone number +123-456-7891. <itec> logo top right.
 - afis3: "DIGITAL MARKETING AGENCY" poster with PURPLE/VIOLET color scheme. Large curved white shape over purple background. Photo of 2 men in circular frame on left. "SERVICES" section at bottom with "Content Writing" and "App Development". Red "JOIN US" button. Phone +000 1234 5678.
 - afis4: RED background poster with a red soda/beverage CAN with <itec> logo on it. Text says "Creează fără limite!" in white bold text. Entirely red theme.
@@ -118,6 +119,7 @@ export async function matchPoster(
 
 // Human-readable names for each poster (used in UI)
 export const POSTER_NAMES: Record<string, string> = {
+  afis1: "Boost Your Social Presence",
   afis2: "Digital Marketing (Roșu)",
   afis3: "Digital Marketing (Violet)",
   afis4: "Creează fără limite",
