@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /d/itec -type f -name *firebase* -o -name *rules*)",
+      "Bash(find /d/itec -type f \\\\\\(-name *.pem -o -name *.key -o -name *.crt -o -name *.p8 -o -name *.p12 -o -name *.jks \\\\\\))"
+    ]
+  }
+}
