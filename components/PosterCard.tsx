@@ -1,19 +1,14 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Colors, Spacing, Radii, Shadows, Typography } from "@/constants/theme";
 import { TEAMS, TeamId } from "@/lib/game-state";
+import { TerritoryInfo } from "@/lib/territory";
 import Animated, { FadeInUp } from "react-native-reanimated";
-
-interface TerritoryScores {
-  dominantTeam: TeamId | null;
-  scores: Partial<Record<TeamId, number>>;
-  totalStrokes: number;
-}
 
 interface PosterCardProps {
   name: string;
   emoji: string;
   posterId: string;
-  territory?: TerritoryScores;
+  territory?: TerritoryInfo;
   onPress: () => void;
   index?: number;
 }
@@ -59,7 +54,7 @@ export default function PosterCard({
                   />
                 )
               )}
-            {(!territory || territory.totalStrokes === 0) && (
+            {(!territory || territory.totalPixels === 0) && (
               <View style={styles.emptyBar} />
             )}
           </View>
@@ -73,7 +68,7 @@ export default function PosterCard({
           ) : (
             <Text style={styles.unclaimedText}>UNCLAIMED</Text>
           )}
-          <Text style={styles.points}>{territory?.totalStrokes ?? 0} pts</Text>
+          <Text style={styles.points}>{territory?.totalPixels ?? 0} px</Text>
         </View>
       </TouchableOpacity>
     </Animated.View>

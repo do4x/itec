@@ -8,7 +8,9 @@
       "Bash(cat /d/itec/.claude/plans/*.md)",
       "Bash(ls -la /d/itec/*.js /d/itec/*.ts)",
       "Bash(ls -la /d/itec/babel* /d/itec/metro*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(npx expo:*)",
+      "Bash(npx tsc:*)"
     ],
     "additionalDirectories": [
       "C:\\Users\\aeria\\.claude\\plans"

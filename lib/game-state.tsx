@@ -1,10 +1,7 @@
-// lib/game-state.tsx
-// ============================================
-// Global game state — who you are, what team, what poster you're on
-// ============================================
-
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Colors } from "@/constants/theme";
+import { useAuth } from "./auth";
+import { db, ref, set, onValue, serverTimestamp } from "./firebase";
 
 export const TEAMS = {
   red: { name: "VANDALS", color: Colors.teamRed, glow: Colors.teamRed + "44" },
@@ -16,26 +13,72 @@ export const TEAMS = {
 export type TeamId = keyof typeof TEAMS;
 
 interface GameState {
+  uid: string | null;
   username: string;
   teamId: TeamId;
   isJoined: boolean;
+  isReady: boolean;
+  isJury: boolean;
   setUsername: (name: string) => void;
   setTeamId: (team: TeamId) => void;
   join: () => void;
+  setIsJury: (v: boolean) => void;
 }
 
 const GameContext = createContext<GameState | null>(null);
 
 export function GameProvider({ children }: { children: ReactNode }) {
+  const { uid, isReady: authReady } = useAuth();
   const [username, setUsername] = useState("");
   const [teamId, setTeamId] = useState<TeamId>("red");
   const [isJoined, setIsJoined] = useState(false);
+  const [isJury, setIsJury] = useState(false);
+  const [restored, setRestored] = useState(false);
 
-  const join = () => setIsJoined(true);
+  // Restore session from Firebase on auth ready
+  useEffect(() => {
+    if (!uid) return;
+    const userRef = ref(db, `users/${uid}`);
+    onValue(userRef, (snap) => {
+      const data = snap.val();
+      if (data?.username) {
+        setUsername(data.username);
+        setTeamId(data.teamId || "red");
+        setIsJoined(true);
+        setIsJury(data.isJury || false);
+      }
+      setRestored(true);
+    }, { onlyOnce: true });
+  }, [uid]);
+
+  const join = () => {
+    setIsJoined(true);
+    if (uid) {
+      set(ref(db, `users/${uid}`), {
+        username,
+        teamId,
+        tokens: 100,
+        lastTokenGrant: serverTimestamp(),
+        joinedAt: serverTimestamp(),
+        isJury: false,
+      });
+    }
+  };
 
   return (
     <GameContext.Provider
-      value={{ username, teamId, isJoined, setUsername, setTeamId, join }}
+      value={{
+        uid,
+        username,
+        teamId,
+        isJoined,
+        isReady: authReady && restored,
+        isJury,
+        setUsername,
+        setTeamId,
+        join,
+        setIsJury,
+      }}
     >
       {children}
     </GameContext.Provider>

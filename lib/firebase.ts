@@ -9,10 +9,12 @@ import {
   getDatabase,
   off,
   onChildAdded,
+  onChildChanged,
   onValue,
   push,
   ref,
   remove,
+  runTransaction,
   serverTimestamp,
   set,
   update,
@@ -23,6 +25,11 @@ import {
   uploadBytes,
   getDownloadURL,
 } from "firebase/storage";
+import {
+  getAuth,
+  signInAnonymously,
+  onAuthStateChanged,
+} from "firebase/auth";
 
 if (!process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID) {
   console.warn("⚠️  Firebase neconfigurat — adaugă fișierul .env cu valorile EXPO_PUBLIC_FIREBASE_*");
@@ -44,6 +51,9 @@ export const db = getDatabase(app);
 const bucket = process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET ?? "placeholder.appspot.com";
 export const storage = getStorage(app, `gs://${bucket}`);
 
+export const auth = getAuth(app);
+
 // Re-export everything components need
-export { off, onChildAdded, onValue, push, ref, remove, serverTimestamp, set, update };
+export { off, onChildAdded, onChildChanged, onValue, push, ref, remove, runTransaction, serverTimestamp, set, update };
 export { storageRef, uploadBytes, getDownloadURL };
+export { signInAnonymously, onAuthStateChanged };

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,16 +7,29 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native";
 import { router } from "expo-router";
 import { useGame, TEAMS, TeamId } from "@/lib/game-state";
+import { useTokens } from "@/lib/tokens";
+import { db, ref, onValue } from "@/lib/firebase";
 import { Colors, Spacing, Radii, Shadows, Typography } from "@/constants/theme";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 
 export default function HomeScreen() {
-  const { username, setUsername, teamId, setTeamId, join } = useGame();
+  const { uid, username, setUsername, teamId, setTeamId, join, setIsJury, isJoined, isReady } = useGame();
+  const { grant } = useTokens(uid);
   const [inputValue, setInputValue] = useState(username);
+  const [showJuryInput, setShowJuryInput] = useState(false);
+  const [juryCode, setJuryCode] = useState("");
+
+  // Auto-redirect if session restored
+  useEffect(() => {
+    if (isReady && isJoined) {
+      router.replace({ pathname: "/(tabs)" });
+    }
+  }, [isReady, isJoined]);
 
   const handleJoin = () => {
     if (!inputValue.trim()) return;
@@ -24,6 +37,25 @@ export default function HomeScreen() {
     join();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     router.replace({ pathname: "/(tabs)" });
+  };
+
+  const handleJuryCode = () => {
+    if (!juryCode.trim()) return;
+    const configRef = ref(db, "config/juryCode");
+    onValue(configRef, (snap) => {
+      const correctCode = snap.val();
+      if (juryCode.trim() === correctCode) {
+        setIsJury(true);
+        grant(2000);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert("JURY MODE", "2000 tokens granted. Welcome, judge.");
+        setShowJuryInput(false);
+        setJuryCode("");
+      } else {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        Alert.alert("Invalid code", "Try again.");
+      }
+    }, { onlyOnce: true });
   };
 
   return (
@@ -110,6 +142,27 @@ export default function HomeScreen() {
         >
           <Text style={styles.joinText}>INTRA IN RAZBOI</Text>
         </TouchableOpacity>
+
+        {showJuryInput ? (
+          <View style={styles.juryRow}>
+            <TextInput
+              style={styles.juryInput}
+              value={juryCode}
+              onChangeText={setJuryCode}
+              placeholder="Enter jury code..."
+              placeholderTextColor={Colors.muted}
+              autoCapitalize="characters"
+              secureTextEntry
+            />
+            <TouchableOpacity style={styles.jurySubmit} onPress={handleJuryCode}>
+              <Text style={styles.jurySubmitText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.juryButton} onPress={() => setShowJuryInput(true)}>
+            <Text style={styles.juryButtonText}>JURY</Text>
+          </TouchableOpacity>
+        )}
       </Animated.View>
     </KeyboardAvoidingView>
   );
@@ -198,5 +251,48 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "900",
     letterSpacing: 3,
+  },
+  juryButton: {
+    alignSelf: "center",
+    marginTop: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: Radii.full,
+    borderWidth: 1,
+    borderColor: Colors.navyLight,
+  },
+  juryButtonText: {
+    color: Colors.muted,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 3,
+  },
+  juryRow: {
+    flexDirection: "row",
+    marginTop: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  juryInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: Colors.navyLight,
+    borderRadius: Radii.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    color: Colors.white,
+    fontSize: 14,
+    backgroundColor: Colors.navyMid,
+  },
+  jurySubmit: {
+    backgroundColor: Colors.teamYellow,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radii.md,
+    justifyContent: "center",
+  },
+  jurySubmitText: {
+    color: Colors.navyDeep,
+    fontWeight: "900",
+    fontSize: 13,
+    letterSpacing: 2,
   },
 });

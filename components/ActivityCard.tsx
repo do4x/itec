@@ -2,21 +2,23 @@ import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors, Spacing, Radii, Shadows, Typography } from "@/constants/theme";
 import { TEAMS, TeamId } from "@/lib/game-state";
+import type { ActivityType } from "@/lib/notifications";
 import Animated, { FadeInUp } from "react-native-reanimated";
 
-type ActionType = "draw" | "capture" | "anthem" | "territory";
-
-const ACTION_ICONS: Record<ActionType, keyof typeof Ionicons.glyphMap> = {
-  draw: "brush",
-  capture: "flag",
+const ACTION_ICONS: Record<ActivityType, keyof typeof Ionicons.glyphMap> = {
+  pixel: "grid-outline",
+  pixel_override: "flash",
+  graffiti: "color-fill",
+  gif: "happy-outline",
+  ai_poster: "sparkles",
   anthem: "musical-notes",
-  territory: "trophy",
+  territory_change: "trophy",
 };
 
 interface ActivityCardProps {
   username: string;
   teamId: TeamId;
-  action: ActionType;
+  action: ActivityType;
   posterName: string;
   timestamp: string;
   index?: number;
@@ -33,14 +35,16 @@ export default function ActivityCard({
   const teamColor = TEAMS[teamId]?.color ?? Colors.muted;
   const iconName = ACTION_ICONS[action] ?? "ellipse";
 
-  const actionText =
-    action === "draw"
-      ? `drew on ${posterName}`
-      : action === "capture"
-        ? `captured ${posterName}!`
-        : action === "anthem"
-          ? `set anthem on ${posterName}`
-          : `won territory on ${posterName}`;
+  const ACTION_TEXT: Record<ActivityType, string> = {
+    pixel: `drew on ${posterName}`,
+    pixel_override: `overwrote a pixel on ${posterName}`,
+    graffiti: `stamped graffiti on ${posterName}`,
+    gif: `placed a GIF on ${posterName}`,
+    ai_poster: `generated AI art on ${posterName}`,
+    anthem: `set anthem on ${posterName}`,
+    territory_change: `shifted territory on ${posterName}`,
+  };
+  const actionText = ACTION_TEXT[action] ?? `acted on ${posterName}`;
 
   return (
     <Animated.View

@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { useGame, TEAMS, TeamId } from "@/lib/game-state";
-import { db, ref, onValue, off } from "@/lib/firebase";
+import { db, ref, onValue } from "@/lib/firebase";
 import { POSTER_NAMES } from "@/lib/poster-matcher";
-import { Colors, Spacing, Radii, Typography, Shadows } from "@/constants/theme";
+import { Colors, Spacing, Radii, Typography } from "@/constants/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ActivityCard from "@/components/ActivityCard";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import type { ActivityType } from "@/lib/notifications";
 
 type FilterType = "all" | "mine" | "rivals";
 
@@ -15,9 +15,11 @@ interface ActivityItem {
   id: string;
   username: string;
   teamId: TeamId;
-  action: "draw" | "capture" | "anthem" | "territory";
+  action: ActivityType;
   posterName: string;
   timestamp: number;
+  targetUsername?: string;
+  targetTeamId?: string;
 }
 
 function timeAgo(ts: number): string {
@@ -38,31 +40,24 @@ export default function FeedScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    const postersRef = ref(db, "posters");
-
-    onValue(postersRef, (snapshot) => {
+    // Read from dedicated /activity/ feed
+    const activityRef = ref(db, "activity");
+    const unsub = onValue(activityRef, (snapshot) => {
       const data = snapshot.val() || {};
-      const items: ActivityItem[] = [];
-
-      for (const [posterId, posterData] of Object.entries(data) as [string, any][]) {
-        const strokes = posterData?.strokes || {};
-        for (const [strokeId, stroke] of Object.entries(strokes) as [string, any][]) {
-          items.push({
-            id: strokeId,
-            username: stroke.username || "Unknown",
-            teamId: (stroke.teamId || "red") as TeamId,
-            action: "draw",
-            posterName: POSTER_NAMES[posterId] || posterId,
-            timestamp: stroke.timestamp || Date.now(),
-          });
-        }
-      }
-
+      const items: ActivityItem[] = Object.entries(data).map(([id, val]: [string, any]) => ({
+        id,
+        username: val.username || "Unknown",
+        teamId: (val.teamId || "red") as TeamId,
+        action: val.type || "pixel",
+        posterName: POSTER_NAMES[val.posterId] || val.posterId || "Unknown",
+        timestamp: val.timestamp || Date.now(),
+        targetUsername: val.targetUsername,
+        targetTeamId: val.targetTeamId,
+      }));
       items.sort((a, b) => b.timestamp - a.timestamp);
       setActivities(items.slice(0, 50));
     });
-
-    return () => off(postersRef);
+    return () => unsub();
   }, []);
 
   const filteredActivities = activities.filter((a) => {
@@ -94,14 +89,7 @@ export default function FeedScreen() {
               onPress={() => setFilter(f.key)}
               activeOpacity={0.7}
             >
-              <Text
-                style={[
-                  styles.filterText,
-                  filter === f.key && styles.filterTextActive,
-                ]}
-              >
-                {f.label}
-              </Text>
+              <Text style={[styles.filterText, filter === f.key && styles.filterTextActive]}>{f.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -111,21 +99,13 @@ export default function FeedScreen() {
         style={styles.feedList}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={Colors.itecBlue}
-          />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.itecBlue} />}
       >
         {filteredActivities.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>🐧</Text>
             <Text style={styles.emptyTitle}>No activity yet</Text>
-            <Text style={styles.emptySubtitle}>
-              Go scan some posters and start the war!
-            </Text>
+            <Text style={styles.emptySubtitle}>Go scan some posters and start the war!</Text>
           </View>
         ) : (
           filteredActivities.map((activity, i) => (
@@ -133,7 +113,7 @@ export default function FeedScreen() {
               key={activity.id}
               username={activity.username}
               teamId={activity.teamId}
-              action={activity.action}
+              action={activity.action as any}
               posterName={activity.posterName}
               timestamp={timeAgo(activity.timestamp)}
               index={i}
@@ -146,61 +126,17 @@ export default function FeedScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.navyDeep,
-    paddingHorizontal: Spacing.lg,
-  },
-  header: {
-    marginBottom: Spacing.xl,
-  },
-  title: {
-    ...Typography.h2,
-    letterSpacing: 4,
-    marginBottom: Spacing.lg,
-  },
-  filterRow: {
-    flexDirection: "row",
-    gap: Spacing.sm,
-  },
-  filterPill: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radii.full,
-    borderWidth: 1,
-    borderColor: Colors.navyLight,
-    backgroundColor: Colors.navyMid,
-  },
-  filterPillActive: {
-    backgroundColor: Colors.itecBlue + "26",
-    borderColor: Colors.itecBlue,
-  },
-  filterText: {
-    ...Typography.caption,
-    color: Colors.softGray,
-  },
-  filterTextActive: {
-    color: Colors.itecBright,
-  },
-  feedList: {
-    flex: 1,
-  },
-  emptyState: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingTop: 80,
-    gap: Spacing.md,
-  },
-  emptyEmoji: {
-    fontSize: 64,
-  },
-  emptyTitle: {
-    ...Typography.h3,
-    color: Colors.softGray,
-  },
-  emptySubtitle: {
-    ...Typography.body,
-    color: Colors.muted,
-    textAlign: "center",
-  },
+  container: { flex: 1, backgroundColor: Colors.navyDeep, paddingHorizontal: Spacing.lg },
+  header: { marginBottom: Spacing.xl },
+  title: { ...Typography.h2, letterSpacing: 4, marginBottom: Spacing.lg },
+  filterRow: { flexDirection: "row", gap: Spacing.sm },
+  filterPill: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderRadius: Radii.full, borderWidth: 1, borderColor: Colors.navyLight, backgroundColor: Colors.navyMid },
+  filterPillActive: { backgroundColor: Colors.itecBlue + "26", borderColor: Colors.itecBlue },
+  filterText: { ...Typography.caption, color: Colors.softGray },
+  filterTextActive: { color: Colors.itecBright },
+  feedList: { flex: 1 },
+  emptyState: { alignItems: "center", justifyContent: "center", paddingTop: 80, gap: Spacing.md },
+  emptyEmoji: { fontSize: 64 },
+  emptyTitle: { ...Typography.h3, color: Colors.softGray },
+  emptySubtitle: { ...Typography.body, color: Colors.muted, textAlign: "center" },
 });
