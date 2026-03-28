@@ -1,0 +1,23 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run on Android Emulator",
+      "request": "launch",
+      "type": "expo",
+      "platform": "android"
+    },
+    {
+      "name": "Run on iOS Simulator",
+      "request": "launch",
+      "type": "expo",
+      "platform": "ios"
+    },
+    {
+      "name": "Run in Browser",
+      "request": "launch",
+      "type": "expo",
+      "platform": "web"
+    }
+  ]
+}

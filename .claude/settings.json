@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /d/itec -type f -name *firebase* -o -name *rules*)",
+      "Bash(find /d/itec -type f \\\\\\(-name *.pem -o -name *.key -o -name *.crt -o -name *.p8 -o -name *.p12 -o -name *.jks \\\\\\))",
+      "Bash(grep -r import.*from.*['']react-native app/ lib/)",
+      "Bash(grep -r \"from.*expo-symbols\\\\|import.*expo-symbols\" /d/itec --include=*.ts --include=*.tsx --include=*.js --include=*.jsx)",
+      "Bash(cat /d/itec/.claude/plans/*.md)",
+      "Bash(ls -la /d/itec/*.js /d/itec/*.ts)",
+      "Bash(ls -la /d/itec/babel* /d/itec/metro*)"
+    ]
+  }
+}
