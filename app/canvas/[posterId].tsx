@@ -9,7 +9,7 @@ import {
   ScrollView,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useGame, TEAMS, TeamId } from "@/lib/game-state";
 import {
   db, ref, set, push, onChildAdded, onChildChanged, onValue, remove, update,
@@ -496,11 +496,11 @@ export default function CanvasScreen() {
         {!pendingGraffiti && (
           <View style={styles.toolRow}>
             {([
-              { tool: "pixel" as Tool, icon: "grid-outline" as const },
-              { tool: "eraser" as Tool, icon: "backspace-outline" as const },
-              { tool: "graffiti" as Tool, icon: "color-fill-outline" as const },
-              { tool: "sticker" as Tool, icon: "happy-outline" as const },
-            ]).map(({ tool, icon }) => (
+              { tool: "pixel" as Tool, node: (active: boolean) => <MaterialCommunityIcons name="pencil-outline" size={22} color={active ? Colors.itecBright : Colors.softGray} /> },
+              { tool: "eraser" as Tool, node: (active: boolean) => <MaterialCommunityIcons name="eraser-variant" size={22} color={active ? Colors.itecBright : Colors.softGray} /> },
+              { tool: "graffiti" as Tool, node: (active: boolean) => <MaterialCommunityIcons name="spray" size={22} color={active ? Colors.itecBright : Colors.softGray} /> },
+              { tool: "sticker" as Tool, node: (active: boolean) => <Text style={{ fontSize: 13, fontWeight: "900", letterSpacing: 1, color: active ? Colors.itecBright : Colors.softGray }}>GIF</Text> },
+            ]).map(({ tool, node }) => (
               <TouchableOpacity
                 key={tool}
                 style={[styles.toolButton, activeTool === tool && styles.toolButtonActive]}
@@ -511,9 +511,25 @@ export default function CanvasScreen() {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
               >
-                <Ionicons name={icon} size={22} color={activeTool === tool ? Colors.itecBright : Colors.softGray} />
+                {node(activeTool === tool)}
               </TouchableOpacity>
             ))}
+            {/* Anthem button */}
+            {anthem?.teamId === teamId ? (
+              <TouchableOpacity
+                style={[styles.toolButton, { borderColor: teamColor }]}
+                onPress={handleClearAnthem}
+              >
+                <Ionicons name="musical-notes" size={22} color={teamColor} />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.toolButton}
+                onPress={() => setShowAnthemPicker(true)}
+              >
+                <Ionicons name="musical-notes-outline" size={22} color={Colors.softGray} />
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -584,12 +600,6 @@ export default function CanvasScreen() {
               <Ionicons name="sparkles" size={20} color={Colors.itecBright} />
               <Text style={styles.addGifText}>AI ART (150)</Text>
             </TouchableOpacity>
-            {anthem?.teamId !== teamId ? (
-              <TouchableOpacity style={styles.addGifBtn} onPress={() => setShowAnthemPicker(true)}>
-                <Ionicons name="musical-notes-outline" size={20} color={Colors.itecBright} />
-                <Text style={styles.addGifText}>ANTHEM (100)</Text>
-              </TouchableOpacity>
-            ) : null}
             {selectedGifId && (
               <TouchableOpacity style={styles.deleteGifBtn} onPress={() => handleDeleteGif(selectedGifId)}>
                 <Ionicons name="trash-outline" size={20} color={Colors.error} />
@@ -599,24 +609,11 @@ export default function CanvasScreen() {
           </View>
         )}
 
-        {/* Anthem active status */}
-        {!pendingGraffiti && anthem?.teamId === teamId && (
-          <View style={styles.anthemRow}>
-            <View style={styles.anthemActiveRow}>
-              <Ionicons name="musical-notes" size={15} color={teamColor} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.anthemActiveText, { color: teamColor }]}>ANTHEM ACTIV</Text>
-                {anthem.name ? (
-                  <Text style={styles.anthemTrackName} numberOfLines={1}>
-                    {anthem.name}{anthem.artist ? ` — ${anthem.artist}` : ""}
-                  </Text>
-                ) : null}
-              </View>
-              <TouchableOpacity onPress={handleClearAnthem} style={styles.anthemClearBtn}>
-                <Ionicons name="close-circle" size={16} color={Colors.error} />
-              </TouchableOpacity>
-            </View>
-          </View>
+        {/* Anthem active track name */}
+        {!pendingGraffiti && anthem?.teamId === teamId && anthem.name && (
+          <Text style={styles.anthemTrackName} numberOfLines={1}>
+            {anthem.name}{anthem.artist ? ` — ${anthem.artist}` : ""}
+          </Text>
         )}
       </ScrollView>
 
@@ -667,7 +664,7 @@ const styles = StyleSheet.create({
   anthemActiveRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm },
   anthemActiveText: { fontWeight: "800", fontSize: 11, letterSpacing: 2 },
   anthemClearBtn: { marginLeft: Spacing.sm },
-  anthemTrackName: { color: Colors.muted, fontSize: 10, letterSpacing: 1, marginTop: 1 },
+  anthemTrackName: { color: Colors.muted, fontSize: 10, letterSpacing: 1, textAlign: "center" },
   // Graffiti placement
   graffitiPlacement: { gap: Spacing.sm },
   placementHint: { color: Colors.muted, fontSize: 9, fontWeight: "700", letterSpacing: 1, textAlign: "center" },

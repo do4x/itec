@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, ActivityIndicator } from "react-native";
 import { Image } from "expo-image";
 import { generateAiPoster } from "@/lib/ai-gen";
@@ -16,9 +16,17 @@ export default function AiPosterModal({ visible, onConfirm, onClose }: AiPosterM
   const [loading, setLoading] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearImageTimeout = () => {
+    if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+  };
+
+  useEffect(() => () => clearImageTimeout(), []);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
+    clearImageTimeout();
     setLoading(true);
     setImageUrl(null);
     setImageLoaded(false);
@@ -26,10 +34,15 @@ export default function AiPosterModal({ visible, onConfirm, onClose }: AiPosterM
     const url = await generateAiPoster(prompt.trim());
     setImageUrl(url);
     setLoading(false);
+    // Auto-fail after 45s if image never fires onLoad
+    timeoutRef.current = setTimeout(() => {
+      setImageLoaded((loaded) => { if (!loaded) setImageError(true); return loaded; });
+    }, 45_000);
   };
 
   const handleConfirm = () => {
     if (imageUrl && imageLoaded) {
+      clearImageTimeout();
       onConfirm(imageUrl);
       setPrompt("");
       setImageUrl(null);
@@ -40,6 +53,7 @@ export default function AiPosterModal({ visible, onConfirm, onClose }: AiPosterM
   };
 
   const handleClose = () => {
+    clearImageTimeout();
     setPrompt("");
     setImageUrl(null);
     setLoading(false);

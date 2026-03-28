@@ -16,8 +16,12 @@ export function useTokens(uid: string | null) {
       const val = snap.val();
       if (typeof val === "number") {
         setTokens(val);
+        // Bump existing accounts below the initial grant to 200
+        if (val < 200) {
+          runTransaction(tokensRef, (current) => (current !== null && current < 200) ? 200 : current);
+        }
       } else {
-        // Nu exista record de tokens (join() a esuat sau race condition) — initializeaza
+        // Nu exista record de tokens — initializeaza
         runTransaction(tokensRef, (current) => current === null ? 200 : current);
       }
     });
