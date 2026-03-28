@@ -1,5 +1,5 @@
 import React, { useCallback, useRef } from "react";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, Image as RNImage } from "react-native";
 import Svg, { Rect, Line } from "react-native-svg";
 import { Colors } from "@/constants/theme";
 
@@ -18,6 +18,7 @@ interface PixelGridProps {
   gridRows?: number;
   onPixelPress: (row: number, col: number) => void;
   onPixelDrag?: (row: number, col: number) => void;
+  backgroundImage?: any;
 }
 
 const GRID_SIZE = 40;
@@ -37,6 +38,7 @@ export default function PixelGrid({
   gridRows = GRID_SIZE,
   onPixelPress,
   onPixelDrag,
+  backgroundImage,
 }: PixelGridProps) {
   const lastCell = useRef<string | null>(null);
   const width = gridCols * cellSize;
@@ -80,16 +82,18 @@ export default function PixelGrid({
     [getCell, onPixelPress, onPixelDrag]
   );
 
+  const lineOpacity = backgroundImage ? 0.15 : 0.3;
+
   // Grid lines
   const gridLines = [];
   for (let i = 0; i <= gridCols; i++) {
     gridLines.push(
-      <Line key={`v${i}`} x1={i * cellSize} y1={0} x2={i * cellSize} y2={height} stroke={Colors.navyLight} strokeWidth={0.5} opacity={0.3} />
+      <Line key={`v${i}`} x1={i * cellSize} y1={0} x2={i * cellSize} y2={height} stroke={Colors.navyLight} strokeWidth={0.5} opacity={lineOpacity} />
     );
   }
   for (let i = 0; i <= gridRows; i++) {
     gridLines.push(
-      <Line key={`h${i}`} x1={0} y1={i * cellSize} x2={width} y2={i * cellSize} stroke={Colors.navyLight} strokeWidth={0.5} opacity={0.3} />
+      <Line key={`h${i}`} x1={0} y1={i * cellSize} x2={width} y2={i * cellSize} stroke={Colors.navyLight} strokeWidth={0.5} opacity={lineOpacity} />
     );
   }
 
@@ -106,8 +110,11 @@ export default function PixelGrid({
 
   return (
     <View style={[styles.container, { width, height }]}>
+      {backgroundImage && (
+        <RNImage source={backgroundImage} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      )}
       <Svg width={width} height={height}>
-        <Rect x={0} y={0} width={width} height={height} fill={Colors.navyDeep} />
+        {!backgroundImage && <Rect x={0} y={0} width={width} height={height} fill={Colors.navyDeep} />}
         {gridLines}
         {rects}
       </Svg>

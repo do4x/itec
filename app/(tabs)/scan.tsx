@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Vibration,
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { router } from "expo-router";
@@ -48,12 +49,14 @@ export default function ScannerScreen() {
     setIsMatching(true);
     setLastResult(null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    Vibration.vibrate(40);
 
     try {
       const photo = await cameraRef.current.takePictureAsync({
         base64: true,
         quality: 0.4,
         imageType: "jpg",
+        shutterSound: false,
       });
 
       if (!photo?.base64) {
@@ -74,12 +77,12 @@ export default function ScannerScreen() {
       const result = await matchPoster(photo.base64, "image/jpeg");
 
       if (result.posterId !== "unknown") {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Vibration.vibrate([0, 80, 50, 160]);
         setLastResult(`${POSTER_NAMES[result.posterId] || result.posterId}`);
         setTimeout(() => {
           router.push({
             pathname: "/canvas/[posterId]",
-            params: { posterId: result.posterId },
+            params: { posterId: result.posterId, photoUri: photo.uri },
           });
           setIsMatching(false);
           setLastResult(null);

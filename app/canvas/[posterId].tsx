@@ -39,11 +39,14 @@ import GraffitiPicker from "@/components/GraffitiPicker";
 import AiPosterModal from "@/components/AiPosterModal";
 import { GraffitiPattern } from "@/constants/graffiti-patterns";
 import { logActivity } from "@/lib/notifications";
+import { POSTER_IMAGES } from "@/constants/poster-images";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const CANVAS_SIZE = SCREEN_WIDTH - 32;
-const GRID_SIZE = 40;
-const CELL_SIZE = CANVAS_SIZE / GRID_SIZE;
+const CANVAS_WIDTH = SCREEN_WIDTH - 32;
+const GRID_COLS = 40;
+const GRID_ROWS = 57;
+const CANVAS_HEIGHT = CANVAS_WIDTH * (297 / 210);
+const CELL_SIZE = CANVAS_WIDTH / GRID_COLS;
 
 const PIXEL_COLORS = [
   Colors.teamRed,
@@ -57,8 +60,11 @@ const PIXEL_COLORS = [
 type Tool = "pixel" | "eraser" | "sticker" | "graffiti";
 
 export default function CanvasScreen() {
-  const { posterId } = useLocalSearchParams<{ posterId: string }>();
+  const { posterId, photoUri } = useLocalSearchParams<{ posterId: string; photoUri?: string }>();
   const isValidPoster = VALID_POSTER_IDS.includes(posterId as any);
+  const posterImage = photoUri
+    ? { uri: photoUri }
+    : (POSTER_IMAGES[posterId as string] ?? null);
   const { uid, username, teamId } = useGame();
   const teamColor = TEAMS[teamId].color;
   const insets = useSafeAreaInsets();
@@ -219,11 +225,11 @@ export default function CanvasScreen() {
     const ok = await spend(100);
     if (!ok) { Alert.alert("Tokens insuficiente", "Ai nevoie de 100 tokens pt un GIF."); return; }
     const gifRef = push(ref(db, `posters/${posterId}/gifs`), {
-      url, x: CANVAS_SIZE / 2, y: CANVAS_SIZE / 2, scale: 1, rotation: 0, teamId, username, uid, type: "gif",
+      url, x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, scale: 1, rotation: 0, teamId, username, uid, type: "gif",
     });
     if (gifRef.key) {
       setGifs((prev) => prev.find((g) => g.id === gifRef.key) ? prev : [...prev, {
-        id: gifRef.key, url, x: CANVAS_SIZE / 2, y: CANVAS_SIZE / 2, scale: 1, rotation: 0,
+        id: gifRef.key, url, x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, scale: 1, rotation: 0,
       }]);
       setSelectedGifId(gifRef.key);
     }
@@ -255,15 +261,15 @@ export default function CanvasScreen() {
     if (!ok) { Alert.alert("Tokens insuficiente", "Ai nevoie de 50 tokens pt graffiti."); return; }
 
     // Stamp centered on grid
-    const startRow = Math.max(0, Math.floor((GRID_SIZE - pattern.height) / 2));
-    const startCol = Math.max(0, Math.floor((GRID_SIZE - pattern.width) / 2));
+    const startRow = Math.max(0, Math.floor((GRID_ROWS - pattern.height) / 2));
+    const startCol = Math.max(0, Math.floor((GRID_COLS - pattern.width) / 2));
     const updates: Record<string, any> = {};
     pattern.pixels.forEach((row, r) => {
       row.forEach((filled, c) => {
         if (filled) {
           const gr = startRow + r;
           const gc = startCol + c;
-          if (gr < GRID_SIZE && gc < GRID_SIZE) {
+          if (gr < GRID_ROWS && gc < GRID_COLS) {
             const key = `${gr}_${gc}`;
             updates[key] = { color: brushColor, teamId, username, uid, t: serverTimestamp() };
           }
@@ -287,10 +293,10 @@ export default function CanvasScreen() {
     const ok = await spend(150);
     if (!ok) { Alert.alert("Tokens insuficiente", "Ai nevoie de 150 tokens pt AI poster."); return; }
     const aiRef = push(ref(db, `posters/${posterId}/gifs`), {
-      url, x: CANVAS_SIZE / 2, y: CANVAS_SIZE / 2, scale: 1, rotation: 0, teamId, username, uid, type: "ai_poster",
+      url, x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, scale: 1, rotation: 0, teamId, username, uid, type: "ai_poster",
     });
     if (aiRef.key) {
-      setGifs((prev) => [...prev, { id: aiRef.key!, url, x: CANVAS_SIZE / 2, y: CANVAS_SIZE / 2, scale: 1, rotation: 0 }]);
+      setGifs((prev) => [...prev, { id: aiRef.key!, url, x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, scale: 1, rotation: 0 }]);
       setSelectedGifId(aiRef.key);
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -407,8 +413,11 @@ export default function CanvasScreen() {
           pixels={pixels}
           selectedColor={brushColor}
           cellSize={CELL_SIZE}
+          gridCols={GRID_COLS}
+          gridRows={GRID_ROWS}
           onPixelPress={activeTool === "pixel" || activeTool === "eraser" ? handlePixelPress : () => {}}
           onPixelDrag={activeTool === "pixel" || activeTool === "eraser" ? handlePixelDrag : undefined}
+          backgroundImage={posterImage}
         />
 
         {/* Layer 2: GIF stickers */}
@@ -545,7 +554,7 @@ const styles = StyleSheet.create({
   pulseDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.success },
   teamDot: { width: 12, height: 12, borderRadius: 6 },
   territoryBar: { flexDirection: "row", height: 6, borderRadius: 3, overflow: "hidden", marginBottom: Spacing.md },
-  canvas: { width: CANVAS_SIZE, height: CANVAS_SIZE, backgroundColor: Colors.navyMid, borderRadius: Radii.lg, borderWidth: 1, borderColor: Colors.navyLight, overflow: "hidden", position: "relative" },
+  canvas: { width: CANVAS_WIDTH, height: CANVAS_HEIGHT, backgroundColor: Colors.navyMid, borderRadius: Radii.lg, borderWidth: 1, borderColor: Colors.navyLight, overflow: "hidden", position: "relative" },
   emptyState: { ...StyleSheet.absoluteFillObject, justifyContent: "center", alignItems: "center" },
   emptyEmoji: { fontSize: 48, marginBottom: Spacing.md },
   emptyText: { color: Colors.muted, fontSize: 14, letterSpacing: 1 },
