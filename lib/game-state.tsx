@@ -28,6 +28,9 @@ interface GameState {
 const GameContext = createContext<GameState | null>(null);
 
 export function GameProvider({ children }: { children: ReactNode }) {
+// #region agent log
+console.error('[DBG b64100] GameProvider RENDER');
+// #endregion
   const { uid, isReady: authReady } = useAuth();
   const [username, setUsername] = useState("");
   const [teamId, setTeamId] = useState<TeamId>("red");

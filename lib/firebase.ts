@@ -28,10 +28,12 @@ import {
 import {
   initializeAuth,
   getReactNativePersistence,
+  getAuth,
   signInAnonymously,
   onAuthStateChanged,
 } from "firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 
 if (!process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID) {
   console.warn("⚠️  Firebase neconfigurat — adaugă fișierul .env cu valorile EXPO_PUBLIC_FIREBASE_*");
@@ -53,9 +55,11 @@ export const db = getDatabase(app);
 const bucket = process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET ?? "placeholder.appspot.com";
 export const storage = getStorage(app, `gs://${bucket}`);
 
-export const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(AsyncStorage),
-});
+export const auth = Platform.OS === "web"
+  ? getAuth(app)
+  : initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage),
+    });
 
 // Re-export everything components need
 export { off, onChildAdded, onChildChanged, onValue, push, ref, remove, runTransaction, serverTimestamp, set, update };

@@ -11,11 +11,14 @@ import {
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { router } from "expo-router";
 import { useGame, TEAMS } from "@/lib/game-state";
-import { matchPoster, POSTER_NAMES } from "@/lib/poster-matcher";
+import { matchPoster } from "@/lib/poster-matcher";
+import { POSTER_DESIGNS, DesignId } from "@/constants/poster-designs";
+import { usePosterInstances } from "@/lib/use-poster-instances";
 import { Colors, Spacing, Radii, Typography, Shadows } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
+import * as Location from "expo-location";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -30,6 +33,7 @@ export default function ScannerScreen() {
   const [lastResult, setLastResult] = useState<string | null>(null);
   const cameraRef = useRef<CameraView>(null);
   const { teamId } = useGame();
+  const { resolveNearestInstance } = usePosterInstances();
   const teamColor = TEAMS[teamId].color;
   const insets = useSafeAreaInsets();
   const captureScale = useSharedValue(1);
@@ -78,15 +82,43 @@ export default function ScannerScreen() {
 
       if (result.posterId !== "unknown") {
         Vibration.vibrate([0, 80, 50, 160]);
-        setLastResult(`${POSTER_NAMES[result.posterId] || result.posterId}`);
-        setTimeout(() => {
-          router.push({
-            pathname: "/canvas/[posterId]",
-            params: { posterId: result.posterId, photoUri: photo.uri },
-          });
+        const posterName = POSTER_DESIGNS[result.posterId as DesignId]?.name ?? result.posterId;
+        setLastResult(posterName);
+
+        // Anti-cheat: resolve to nearest calibrated instance via GPS
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          Alert.alert("Location Required", "GPS access is needed to verify you're near the poster.");
           setIsMatching(false);
-          setLastResult(null);
-        }, 800);
+          return;
+        }
+
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.BestForNavigation,
+        });
+        const resolved = resolveNearestInstance(
+          result.posterId as DesignId,
+          loc.coords.latitude,
+          loc.coords.longitude,
+          4
+        );
+
+        if (resolved) {
+          setTimeout(() => {
+            router.push({
+              pathname: "/canvas/[posterId]",
+              params: { posterId: resolved.instance.id, photoUri: photo.uri },
+            });
+            setIsMatching(false);
+            setLastResult(null);
+          }, 800);
+        } else {
+          Alert.alert(
+            "No nearby poster found",
+            "You must be within 4m of a registered poster to vandalize it."
+          );
+          setIsMatching(false);
+        }
       } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         setLastResult("Poster not recognized. Try again.");
@@ -218,7 +250,7 @@ export default function ScannerScreen() {
                   }}
                 >
                   <Text style={[styles.devButtonText, { color: teamColor }]}>
-                    {POSTER_NAMES[id]?.substring(0, 12) || id}
+                    {POSTER_DESIGNS[id as DesignId]?.name?.substring(0, 12) || id}
                   </Text>
                 </TouchableOpacity>
               ))}

@@ -116,17 +116,3 @@ export async function matchPoster(
     };
   }
 }
-
-// Human-readable names for each poster (used in UI)
-export const POSTER_NAMES: Record<string, string> = {
-  afis1: "Boost Your Social Presence",
-  afis2: "Digital Marketing (Roșu)",
-  afis3: "Digital Marketing (Violet)",
-  afis4: "Creează fără limite",
-  afis5: "Best Burger in Town",
-  afis6: "Form Follows Function",
-  afis7: "Explore the World",
-  afis8: "Fashion Business",
-  afis9: "Exclusive Sneakers",
-  afis10: "itec Yellow",
-};

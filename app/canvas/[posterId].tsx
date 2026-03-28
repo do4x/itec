@@ -15,7 +15,8 @@ import {
   db, ref, set, push, onChildAdded, onChildChanged, onValue, remove, update,
   serverTimestamp,
 } from "@/lib/firebase";
-import { VALID_POSTER_IDS, POSTER_NAMES } from "@/lib/poster-matcher";
+import { VALID_POSTER_IDS } from "@/lib/poster-matcher";
+import { POSTER_DESIGNS, DesignId } from "@/constants/poster-designs";
 import { useTokens } from "@/lib/tokens";
 import { Colors, Spacing, Radii, Typography, Shadows } from "@/constants/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -390,7 +391,7 @@ export default function CanvasScreen() {
           <Ionicons name="arrow-back" size={20} color={Colors.softGray} />
         </TouchableOpacity>
         <Text style={styles.posterLabel} numberOfLines={1}>
-          {POSTER_NAMES[posterId] || posterId}
+          {POSTER_DESIGNS[posterId as DesignId]?.name || posterId}
         </Text>
         <View style={styles.headerRight}>
           <View style={styles.tokenBadge}>

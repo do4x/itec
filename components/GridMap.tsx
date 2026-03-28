@@ -47,7 +47,7 @@ const PIN_OUTER =
   "M0,-13 C-5.5,-13 -10,-8.5 -10,-4 C-10,3.5 0,13 0,13 C0,13 10,3.5 10,-4 C10,-8.5 5.5,-13 0,-13 Z";
 const PIN_CIRCLE_R = 5.5;
 
-// ─── Animated Grid Line (draws in like a path) ───
+// ─── Animated Grid Line ───
 function AnimGridLine({
   x1,
   y1,
@@ -65,21 +65,14 @@ function AnimGridLine({
   opac: number;
   delay: number;
 }) {
-  const lineLength = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
-  const dashOffset = useSharedValue(lineLength);
   const opacity = useSharedValue(0);
 
   useEffect(() => {
-    opacity.value = withDelay(delay, withTiming(opac, { duration: 300 }));
-    dashOffset.value = withDelay(
-      delay,
-      withTiming(0, { duration: 700, easing: Easing.out(Easing.cubic) })
-    );
+    opacity.value = withDelay(delay, withTiming(opac, { duration: 500 }));
   }, []);
 
   const animProps = useAnimatedProps(() => ({
     opacity: opacity.value,
-    strokeDashoffset: dashOffset.value,
   }));
 
   return (
@@ -90,13 +83,12 @@ function AnimGridLine({
       y2={y2}
       stroke={Colors.navyLight}
       strokeWidth={strokeW}
-      strokeDasharray={`${lineLength}`}
       animatedProps={animProps}
     />
   );
 }
 
-// ─── Animated Building (scale-pop with border) ───
+// ─── Animated Building ───
 function AnimBuilding({
   x,
   y,
@@ -110,30 +102,21 @@ function AnimBuilding({
   h: number;
   delay: number;
 }) {
-  const scale = useSharedValue(0.8);
+  const scale = useSharedValue(0);
   const opacity = useSharedValue(0);
 
   useEffect(() => {
     scale.value = withDelay(
       delay,
-      withSpring(1, { damping: 20, stiffness: 300 })
+      withSpring(1, { damping: 15, stiffness: 200 })
     );
-    opacity.value = withDelay(
-      delay,
-      withTiming(1, { duration: 400, easing: Easing.out(Easing.cubic) })
-    );
+    opacity.value = withDelay(delay, withTiming(0.18, { duration: 400 }));
   }, []);
 
   const animProps = useAnimatedProps(() => ({
-    opacity: opacity.value * 0.22,
-    x: x - (w * scale.value) / 2,
-    y: y - (h * scale.value) / 2,
-    width: w * scale.value,
-    height: h * scale.value,
-  }));
-
-  const borderAnimProps = useAnimatedProps(() => ({
-    opacity: opacity.value * 0.15,
+    opacity: opacity.value,
+    // react-native-svg Rect doesn't support transform via animatedProps easily,
+    // so we animate opacity + width/height from center
     x: x - (w * scale.value) / 2,
     y: y - (h * scale.value) / 2,
     width: w * scale.value,
@@ -141,20 +124,14 @@ function AnimBuilding({
   }));
 
   return (
-    <>
-      <AnimatedRect
-        rx={4}
-        fill={Colors.navyLight}
-        animatedProps={animProps}
-      />
-      <AnimatedRect
-        rx={4}
-        fill="none"
-        stroke={Colors.navyLight}
-        strokeWidth={1}
-        animatedProps={borderAnimProps}
-      />
-    </>
+    <AnimatedRect
+      rx={3}
+      fill={Colors.navyLight}
+      stroke={Colors.navyLight}
+      strokeWidth={0.5}
+      strokeOpacity={0.25}
+      animatedProps={animProps}
+    />
   );
 }
 

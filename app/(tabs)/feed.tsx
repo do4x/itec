@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from "react-native";
 import { useGame, TEAMS, TeamId } from "@/lib/game-state";
 import { db, ref, onValue } from "@/lib/firebase";
-import { POSTER_NAMES } from "@/lib/poster-matcher";
+import { POSTER_DESIGNS, DesignId } from "@/constants/poster-designs";
 import { Colors, Spacing, Radii, Typography } from "@/constants/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ActivityCard from "@/components/ActivityCard";
@@ -49,7 +49,7 @@ export default function FeedScreen() {
         username: val.username || "Unknown",
         teamId: (val.teamId || "red") as TeamId,
         action: val.type || "pixel",
-        posterName: POSTER_NAMES[val.posterId] || val.posterId || "Unknown",
+        posterName: POSTER_DESIGNS[val.posterId as DesignId]?.name || val.posterId || "Unknown",
         timestamp: val.timestamp || Date.now(),
         targetUsername: val.targetUsername,
         targetTeamId: val.targetTeamId,
