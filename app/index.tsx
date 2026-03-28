@@ -1,6 +1,7 @@
 import { Colors, Radii, Shadows, Spacing } from "@/constants/theme";
 import { db, onValue, ref } from "@/lib/firebase";
 import { TEAMS, TeamId, useGame } from "@/lib/game-state";
+import { AVATARS, getAvatar } from "@/constants/avatars";
 import { useTokens } from "@/lib/tokens";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
@@ -240,10 +241,13 @@ export default function HomeScreen() {
     setUsername,
     teamId,
     setTeamId,
+    avatar,
+    setAvatar,
     join,
     setIsJury,
     isJoined,
     isReady,
+    isGuest,
   } = useGame();
   const { grant } = useTokens(uid);
   const [inputValue, setInputValue] = useState(username);
@@ -392,6 +396,13 @@ export default function HomeScreen() {
             </View>
           </Animated.View>
 
+          {/* Banner Guest */}
+          {isGuest && (
+            <Animated.View entering={FadeIn.duration(400)} style={styles.guestBanner}>
+              <Text style={styles.guestBannerText}>👁 MOD GUEST — acțiunile nu se salvează</Text>
+            </Animated.View>
+          )}
+
           {/* Glass Card */}
           <Animated.View
             entering={FadeInUp.duration(600).delay(200)}
@@ -437,6 +448,29 @@ export default function HomeScreen() {
                     </Text>
                   </Animated.View>
                 )}
+              </View>
+            </View>
+
+            {/* Avatar Selection */}
+            <View style={styles.avatarSection}>
+              <Text style={styles.label}>AVATAR</Text>
+              <View style={styles.avatarGrid}>
+                {AVATARS.map((av) => {
+                  const isSelected = avatar === av.id;
+                  return (
+                    <TouchableOpacity
+                      key={av.id}
+                      style={[
+                        styles.avatarItem,
+                        isSelected && { borderColor: av.color, backgroundColor: av.color + "22" },
+                      ]}
+                      onPress={() => setAvatar(av.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.avatarEmoji}>{av.emoji}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
 
@@ -658,6 +692,47 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  // Guest banner
+  guestBanner: {
+    backgroundColor: Colors.navyMid,
+    borderWidth: 1,
+    borderColor: Colors.navyLight,
+    borderRadius: Radii.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
+    alignItems: "center",
+  },
+  guestBannerText: {
+    color: Colors.muted,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 2,
+  },
+
+  // Avatar
+  avatarSection: {
+    marginBottom: Spacing.xl,
+  },
+  avatarGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.sm,
+  },
+  avatarItem: {
+    width: 52,
+    height: 52,
+    borderRadius: Radii.md,
+    borderWidth: 1.5,
+    borderColor: Colors.navyLight,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.navyDeep + "80",
+  },
+  avatarEmoji: {
+    fontSize: 26,
   },
 
   // Teams

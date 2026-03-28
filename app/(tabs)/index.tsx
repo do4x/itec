@@ -1,8 +1,10 @@
 import GridMap from "@/components/GridMap";
 import PosterBottomSheet from "@/components/PosterBottomSheet";
 import PosterCard from "@/components/PosterCard";
+import ProfileModal from "@/components/ProfileModal";
 import TokenIcon from "@/components/TokenIcon";
 import { DesignId, POSTER_DESIGNS, PosterInstance } from "@/constants/poster-designs";
+import { getAvatar } from "@/constants/avatars";
 import { Colors, Radii, Shadows, Spacing, Typography } from "@/constants/theme";
 import { db, onValue, ref } from "@/lib/firebase";
 import { TeamId, TEAMS, useGame } from "@/lib/game-state";
@@ -16,14 +18,13 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function MapScreen() {
-// #region agent log
-console.error('[DBG b64100] MapScreen RENDER');
-// #endregion
-  const { uid, teamId } = useGame();
+  const { uid, teamId, avatar } = useGame();
   const { tokens } = useTokens(uid);
   const insets = useSafeAreaInsets();
   const { instances, instanceCount } = usePosterInstances();
   const [territories, setTerritories] = useState<Record<string, TerritoryInfo>>({});
+  const [showProfile, setShowProfile] = useState(false);
+  const currentAvatar = getAvatar(avatar);
 
   // Bottom sheet
   const [selectedInstance, setSelectedInstance] = useState<PosterInstance | null>(null);
@@ -80,8 +81,17 @@ console.error('[DBG b64100] MapScreen RENDER');
             <View style={[styles.badgeDot, { backgroundColor: TEAMS[teamId]?.color }]} />
             <Text style={[styles.badgeText, { color: TEAMS[teamId]?.color }]}>{TEAMS[teamId]?.name}</Text>
           </View>
+          {/* Buton profil */}
+          <TouchableOpacity
+            style={[styles.avatarBtn, { borderColor: currentAvatar.color }]}
+            onPress={() => setShowProfile(true)}
+          >
+            <Text style={styles.avatarBtnEmoji}>{currentAvatar.emoji}</Text>
+          </TouchableOpacity>
         </View>
       </Animated.View>
+
+      <ProfileModal visible={showProfile} onClose={() => setShowProfile(false)} />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         {/* GPS Grid Map — uses calibrated instance coords */}
@@ -167,6 +177,8 @@ const styles = StyleSheet.create({
   tokenBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: Colors.teamYellow + "22", paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: Radii.full, borderWidth: 1, borderColor: Colors.teamYellow + "44" },
   tokenText: { fontSize: 12, fontWeight: "800", color: Colors.teamYellow },
   teamBadge: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, borderWidth: 1, borderRadius: Radii.full, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, backgroundColor: Colors.navyMid },
+  avatarBtn: { width: 32, height: 32, borderRadius: 16, borderWidth: 1.5, alignItems: "center", justifyContent: "center", backgroundColor: Colors.navyMid },
+  avatarBtnEmoji: { fontSize: 16 },
   badgeDot: { width: 8, height: 8, borderRadius: 4 },
   badgeText: { fontSize: 10, fontWeight: "800", letterSpacing: 2 },
   scoreSection: { marginTop: Spacing.lg, backgroundColor: Colors.navyMid, borderRadius: Radii.lg, borderWidth: 1, borderColor: Colors.navyLight, padding: Spacing.lg, ...Shadows.soft },

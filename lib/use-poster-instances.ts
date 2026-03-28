@@ -3,10 +3,6 @@ import { DesignId, PosterInstance } from "@/constants/poster-designs";
 import { db, onValue, ref } from "@/lib/firebase";
 import { useCallback, useEffect, useState } from "react";
 
-// #region agent log
-console.error('[DBG b64100] use-poster-instances.ts MODULE LOADED');
-// #endregion
-
 /**
  * Hook: reads all calibrated poster instances from Firebase.
  * Returns instances for map rendering + a proximity resolver for scan validation.

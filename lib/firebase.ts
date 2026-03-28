@@ -30,6 +30,9 @@ import {
   getReactNativePersistence,
   getAuth,
   signInAnonymously,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
   onAuthStateChanged,
 } from "firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -64,4 +67,4 @@ export const auth = Platform.OS === "web"
 // Re-export everything components need
 export { off, onChildAdded, onChildChanged, onValue, push, ref, remove, runTransaction, serverTimestamp, set, update };
 export { storageRef, uploadBytes, getDownloadURL };
-export { signInAnonymously, onAuthStateChanged };
+export { signInAnonymously, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged };

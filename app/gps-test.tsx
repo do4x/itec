@@ -1,6 +1,3 @@
-// #region agent log
-console.error('[DBG b64100] gps-test.tsx MODULE LOADED');
-// #endregion
 import { Colors, Radii, Spacing } from "@/constants/theme";
 import * as Location from "expo-location";
 import { useEffect, useRef, useState } from "react";

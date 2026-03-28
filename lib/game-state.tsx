@@ -16,59 +16,82 @@ interface GameState {
   uid: string | null;
   username: string;
   teamId: TeamId;
+  avatar: string;
   isJoined: boolean;
   isReady: boolean;
   isJury: boolean;
+  isGuest: boolean;
+  isAuthenticated: boolean;
   setUsername: (name: string) => void;
   setTeamId: (team: TeamId) => void;
+  setAvatar: (avatarId: string) => void;
   join: () => void;
+  logout: () => Promise<void>;
   setIsJury: (v: boolean) => void;
 }
 
 const GameContext = createContext<GameState | null>(null);
 
 export function GameProvider({ children }: { children: ReactNode }) {
-// #region agent log
-console.error('[DBG b64100] GameProvider RENDER');
-// #endregion
-  const { uid, isReady: authReady } = useAuth();
+  const { uid, isReady: authReady, isGuest, isAuthenticated, logout: authLogout } = useAuth();
   const [username, setUsername] = useState("");
   const [teamId, setTeamId] = useState<TeamId>("red");
+  const [avatar, setAvatar] = useState("ghost");
   const [isJoined, setIsJoined] = useState(false);
   const [isJury, setIsJury] = useState(false);
   const [restored, setRestored] = useState(false);
 
-  // Restore session from Firebase on auth ready
+  // Reset all state on logout (uid becomes null) or restore from Firebase on login
   useEffect(() => {
     if (!uid) {
-      setRestored(true); // auth eșuat — nu bloca UI-ul
+      setIsJoined(false);
+      setUsername("");
+      setTeamId("red");
+      setAvatar("ghost");
+      setIsJury(false);
+      setRestored(true);
       return;
     }
+
+    // Guest users skip Firebase restore — they'll fill in onboarding fresh
+    if (isGuest) {
+      setRestored(true);
+      return;
+    }
+
     const userRef = ref(db, `users/${uid}`);
     onValue(userRef, (snap) => {
       const data = snap.val();
       if (data?.username) {
         setUsername(data.username);
         setTeamId(data.teamId || "red");
+        setAvatar(data.avatar || "ghost");
         setIsJoined(true);
         setIsJury(data.isJury || false);
       }
       setRestored(true);
     }, { onlyOnce: true });
-  }, [uid]);
+  }, [uid, isGuest]);
 
   const join = () => {
     setIsJoined(true);
-    if (uid) {
+    // Guests don't persist to Firebase
+    if (uid && !isGuest) {
       set(ref(db, `users/${uid}`), {
         username,
         teamId,
-        tokens: 100,
+        avatar,
+        tokens: 200,
         lastTokenGrant: serverTimestamp(),
         joinedAt: serverTimestamp(),
         isJury: false,
       });
     }
+  };
+
+  const logout = async () => {
+    await authLogout();
+    // State reset is handled by the uid useEffect above
   };
 
   return (
@@ -77,12 +100,17 @@ console.error('[DBG b64100] GameProvider RENDER');
         uid,
         username,
         teamId,
+        avatar,
         isJoined,
         isReady: authReady && restored,
         isJury,
+        isGuest,
+        isAuthenticated,
         setUsername,
         setTeamId,
+        setAvatar,
         join,
+        logout,
         setIsJury,
       }}
     >

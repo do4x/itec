@@ -65,7 +65,10 @@ export default function CanvasScreen() {
   const { posterId, photoUri } = useLocalSearchParams<{ posterId: string; photoUri?: string }>();
   const isValidPoster = VALID_POSTER_IDS.includes(posterId as any);
   const posterImage = POSTER_IMAGES[posterId as string] ?? (photoUri ? { uri: photoUri } : null);
-  const { uid, username, teamId } = useGame();
+  const { uid, username, teamId, isGuest } = useGame();
+
+  const warnGuest = () =>
+    Alert.alert("Mod Guest", "Creează un cont pentru a salva acțiunile în joc.", [{ text: "OK" }]);
   const teamColor = TEAMS[teamId]?.color ?? Colors.teamCyan;
   const insets = useSafeAreaInsets();
   const { tokens, spend, canAfford } = useTokens(uid);
@@ -179,6 +182,7 @@ export default function CanvasScreen() {
   // ── Pixel drawing ─────────────────────────────────────────────────────
   const handlePixelPress = useCallback(async (row: number, col: number, silent = false) => {
     if (!posterId || !uid) return;
+    if (isGuest) { if (!silent) warnGuest(); return; }
     const key = `${row}_${col}`;
 
     if (activeTool === "eraser") {
@@ -216,6 +220,7 @@ export default function CanvasScreen() {
   // ── GIF operations ─────────────────────────────────────────────────────
   const handleAddGif = useCallback(async (url: string) => {
     if (!posterId || !uid) return;
+    if (isGuest) { warnGuest(); return; }
     const ok = await spend(100);
     if (!ok) { Alert.alert("Tokens insuficiente", "Ai nevoie de 100 tokens pt un GIF."); return; }
     const gifRef = push(ref(db, `posters/${posterId}/gifs`), {
@@ -238,6 +243,7 @@ export default function CanvasScreen() {
 
   const handleDeleteGif = useCallback(async (id: string) => {
     if (!posterId) return;
+    if (isGuest) { warnGuest(); return; }
     const ok = await spend(150);
     if (!ok) { Alert.alert("Tokens insuficiente", "Ai nevoie de 150 tokens pt a sterge."); return; }
     setGifs((prev) => prev.filter((g) => g.id !== id));
@@ -283,6 +289,7 @@ export default function CanvasScreen() {
   // Step 2: confirm → spend tokens + stamp
   const handleGraffitiConfirm = useCallback(async () => {
     if (!pendingGraffiti || !posterId || !uid) return;
+    if (isGuest) { warnGuest(); return; }
     const { pattern, startRow, startCol } = pendingGraffiti;
     const ok = await spend(50);
     if (!ok) { Alert.alert("Tokens insuficiente", "Ai nevoie de 50 tokens pt graffiti."); return; }
@@ -318,6 +325,7 @@ export default function CanvasScreen() {
   // ── AI Poster ──────────────────────────────────────────────────────────
   const handleAiPosterConfirm = useCallback(async (url: string) => {
     if (!posterId || !uid) return;
+    if (isGuest) { warnGuest(); return; }
     const ok = await spend(150);
     if (!ok) { Alert.alert("Tokens insuficiente", "Ai nevoie de 150 tokens pt AI poster."); return; }
     const aiRef = push(ref(db, `posters/${posterId}/gifs`), {
@@ -335,6 +343,7 @@ export default function CanvasScreen() {
   // ── Anthem callbacks ───────────────────────────────────────────────────
   const handleAnthemSelect = useCallback(async (track: JamendoTrack) => {
     if (!posterId || !uid) return;
+    if (isGuest) { warnGuest(); return; }
     const ok = await spend(100);
     if (!ok) { Alert.alert("Tokens insuficiente", "Ai nevoie de 100 tokens pt anthem."); return; }
     update(ref(db, `posters/${posterId}/anthem`), {

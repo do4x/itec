@@ -4,10 +4,6 @@
 // These never change. Physical instances reference a designId.
 // ============================================
 
-// #region agent log
-console.error('[DBG b64100] poster-designs.ts MODULE LOADED');
-// #endregion
-
 export const POSTER_DESIGNS = {
   afis1:  { name: "Boost Your Social Presence", emoji: "📱" },
   afis2:  { name: "Digital Marketing (Roșu)",   emoji: "📱" },

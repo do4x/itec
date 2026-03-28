@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { db, ref, onValue, runTransaction, serverTimestamp, set } from "./firebase";
+import { auth, db, ref, onValue, runTransaction, serverTimestamp, set } from "./firebase";
 
 const TOKEN_CAP = 2000;
 const REFILL_RATE = 20; // per minute
@@ -43,7 +43,7 @@ export function useTokens(uid: string | null) {
   }, [uid]);
 
   const spend = useCallback(async (amount: number): Promise<boolean> => {
-    if (!uid) return false;
+    if (!uid || auth.currentUser?.isAnonymous) return false;
     const tokensRef = ref(db, `users/${uid}/tokens`);
     const result = await runTransaction(tokensRef, (current) => {
       const balance = current === null ? 200 : current; // initializeaza daca lipseste

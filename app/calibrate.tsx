@@ -1,6 +1,3 @@
-// #region agent log
-console.error('[DBG b64100] calibrate.tsx MODULE LOADED');
-// #endregion
 import {
     DESIGN_IDS,
     DesignId,

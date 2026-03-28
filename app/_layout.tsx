@@ -1,25 +1,33 @@
-import { Stack } from "expo-router";
+import { useEffect } from "react";
+import { Stack, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
-import { GameProvider } from "@/lib/game-state";
+import { GameProvider, useGame } from "@/lib/game-state";
 import { Colors } from "@/constants/theme";
 import { ErrorBoundary } from "expo-router";
 
-// #region agent log
-console.error('[DBG b64100] _layout.tsx MODULE LOADED');
-// #endregion
-
 export { ErrorBoundary };
 
+// Redirecționează utilizatorii neautentificați la ecranul de login
+function AuthGuard() {
+  const { isReady, isAuthenticated, isGuest } = useGame();
+
+  useEffect(() => {
+    if (!isReady) return;
+    if (!isAuthenticated && !isGuest) {
+      router.replace("/auth" as any);
+    }
+  }, [isReady, isAuthenticated, isGuest]);
+
+  return null;
+}
+
 export default function RootLayout() {
-// #region agent log
-console.error('[DBG b64100] RootLayout RENDER');
-// #endregion
-  try {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <GameProvider>
+        <AuthGuard />
         <Stack
           screenOptions={{
             headerShown: false,
@@ -27,6 +35,7 @@ console.error('[DBG b64100] RootLayout RENDER');
             animation: "slide_from_right",
           }}
         >
+          <Stack.Screen name="auth" options={{ animation: "fade" }} />
           <Stack.Screen name="index" />
           <Stack.Screen name="(tabs)" options={{ animation: "fade" }} />
           <Stack.Screen
@@ -40,10 +49,4 @@ console.error('[DBG b64100] RootLayout RENDER');
       </GameProvider>
     </GestureHandlerRootView>
   );
-  } catch (e: any) {
-// #region agent log
-    console.error('[DBG b64100] RootLayout CRASH:', e?.message, e?.stack);
-// #endregion
-    throw e;
-  }
 }

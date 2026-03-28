@@ -1,4 +1,4 @@
-import { db, ref, push, serverTimestamp } from "./firebase";
+import { db, ref, push, serverTimestamp, auth } from "./firebase";
 
 export type ActivityType =
   | "pixel"
@@ -19,6 +19,7 @@ interface ActivityEntry {
 }
 
 export function logActivity(entry: ActivityEntry) {
+  if (auth.currentUser?.isAnonymous) return; // guests nu loghează activitate
   push(ref(db, "activity"), {
     ...entry,
     timestamp: serverTimestamp(),

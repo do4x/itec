@@ -2,7 +2,7 @@
 // Primește un prompt string, returnează un data URI (base64) gata de afișat
 
 const GEMINI_ENDPOINT =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=AIzaSyDdalOcz4g-VzyaeI7CANlnP5jVFahm8nU";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=AIzaSyDdalOcz4g-VzyaeI7CANlnP5jVFahm8nU";
 
 /**
  * Generează o imagine pe baza promptului și returnează un data URI.
