@@ -1,8 +1,3 @@
-// app/index.tsx
-// ============================================
-// HOME — Join screen. Pick username + team, enter the war.
-// ============================================
-
 import { useState } from "react";
 import {
   View,
@@ -15,17 +10,20 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { useGame, TEAMS, TeamId } from "@/lib/game-state";
+import { Colors, Spacing, Radii, Shadows, Typography } from "@/constants/theme";
 import * as Haptics from "expo-haptics";
+import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 
 export default function HomeScreen() {
-  const { username, setUsername, teamId, setTeamId } = useGame();
+  const { username, setUsername, teamId, setTeamId, join } = useGame();
   const [inputValue, setInputValue] = useState(username);
 
   const handleJoin = () => {
     if (!inputValue.trim()) return;
     setUsername(inputValue.trim());
+    join();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    router.push("/scanner");
+    router.replace("/(tabs)" as any);
   };
 
   return (
@@ -33,30 +31,27 @@ export default function HomeScreen() {
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      {/* Title */}
-      <View style={styles.header}>
+      <Animated.View entering={FadeInDown.duration(600)} style={styles.header}>
         <Text style={styles.preTitle}>iTEC 2026</Text>
         <Text style={styles.title}>OVERRIDE</Text>
         <Text style={styles.subtitle}>vandalism digital colaborativ</Text>
-      </View>
+      </Animated.View>
 
-      {/* Username Input */}
-      <View style={styles.inputSection}>
+      <Animated.View entering={FadeInUp.duration(500).delay(200)} style={styles.inputSection}>
         <Text style={styles.label}>TAG NAME</Text>
         <TextInput
           style={styles.input}
           value={inputValue}
           onChangeText={setInputValue}
           placeholder="scrie-ți tag-ul..."
-          placeholderTextColor="#555"
+          placeholderTextColor={Colors.muted}
           autoCapitalize="none"
           autoCorrect={false}
           maxLength={16}
         />
-      </View>
+      </Animated.View>
 
-      {/* Team Selection */}
-      <View style={styles.teamSection}>
+      <Animated.View entering={FadeInUp.duration(500).delay(350)} style={styles.teamSection}>
         <Text style={styles.label}>ECHIPA</Text>
         <View style={styles.teamGrid}>
           {(Object.keys(TEAMS) as TeamId[]).map((id) => {
@@ -67,9 +62,9 @@ export default function HomeScreen() {
                 key={id}
                 style={[
                   styles.teamCard,
-                  { borderColor: team.color },
+                  { borderColor: isSelected ? team.color : Colors.navyLight },
                   isSelected && {
-                    backgroundColor: team.glow,
+                    ...Shadows.glow(team.color),
                     borderWidth: 2,
                   },
                 ]}
@@ -80,32 +75,42 @@ export default function HomeScreen() {
                 activeOpacity={0.7}
               >
                 <View
-                  style={[styles.teamDot, { backgroundColor: team.color }]}
+                  style={[
+                    styles.teamDot,
+                    { backgroundColor: team.color },
+                    isSelected && { transform: [{ scale: 1.3 }] },
+                  ]}
                 />
-                <Text style={[styles.teamName, { color: team.color }]}>
+                <Text
+                  style={[
+                    styles.teamName,
+                    { color: isSelected ? team.color : Colors.softGray },
+                  ]}
+                >
                   {team.name}
                 </Text>
               </TouchableOpacity>
             );
           })}
         </View>
-      </View>
+      </Animated.View>
 
-      {/* Join Button */}
-      <TouchableOpacity
-        style={[
-          styles.joinButton,
-          {
-            backgroundColor: TEAMS[teamId].color,
-            opacity: inputValue.trim() ? 1 : 0.3,
-          },
-        ]}
-        onPress={handleJoin}
-        disabled={!inputValue.trim()}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.joinText}>INTRĂ ÎN RĂZBOI</Text>
-      </TouchableOpacity>
+      <Animated.View entering={FadeInUp.duration(500).delay(500)}>
+        <TouchableOpacity
+          style={[
+            styles.joinButton,
+            {
+              backgroundColor: TEAMS[teamId].color,
+              opacity: inputValue.trim() ? 1 : 0.3,
+            },
+          ]}
+          onPress={handleJoin}
+          disabled={!inputValue.trim()}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.joinText}>INTRA IN RAZBOI</Text>
+        </TouchableOpacity>
+      </Animated.View>
     </KeyboardAvoidingView>
   );
 }
@@ -113,54 +118,46 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0A0A0F",
-    paddingHorizontal: 24,
+    backgroundColor: Colors.navyDeep,
+    paddingHorizontal: Spacing.xxl,
     justifyContent: "center",
   },
   header: {
     alignItems: "center",
-    marginBottom: 48,
+    marginBottom: Spacing.huge,
   },
   preTitle: {
-    color: "#666",
+    ...Typography.label,
+    color: Colors.muted,
     fontSize: 14,
-    letterSpacing: 4,
-    fontWeight: "600",
   },
   title: {
-    color: "#FFFFFF",
-    fontSize: 56,
-    fontWeight: "900",
-    letterSpacing: 8,
-    marginTop: 4,
+    ...Typography.hero,
+    marginTop: Spacing.xs,
   },
   subtitle: {
-    color: "#888",
+    ...Typography.caption,
     fontSize: 13,
-    letterSpacing: 2,
-    marginTop: 8,
-    textTransform: "uppercase",
+    color: Colors.softGray,
+    marginTop: Spacing.sm,
   },
   inputSection: {
-    marginBottom: 32,
+    marginBottom: Spacing.xxxl,
   },
   label: {
-    color: "#666",
-    fontSize: 11,
-    letterSpacing: 3,
-    fontWeight: "700",
-    marginBottom: 8,
+    ...Typography.label,
+    marginBottom: Spacing.sm,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#333",
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    borderColor: Colors.navyLight,
+    borderRadius: Radii.lg,
+    paddingHorizontal: Spacing.lg,
     paddingVertical: 14,
-    color: "#FFF",
+    color: Colors.white,
     fontSize: 18,
     fontWeight: "600",
-    backgroundColor: "#111118",
+    backgroundColor: Colors.navyMid,
   },
   teamSection: {
     marginBottom: 40,
@@ -168,23 +165,23 @@ const styles = StyleSheet.create({
   teamGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    gap: Spacing.md,
   },
   teamCard: {
     flex: 1,
     minWidth: "45%",
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: Radii.lg,
+    padding: Spacing.lg,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    backgroundColor: "#111118",
+    gap: Spacing.md,
+    backgroundColor: Colors.navyMid,
   },
   teamDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
   },
   teamName: {
     fontSize: 13,
@@ -192,12 +189,12 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   joinButton: {
-    borderRadius: 14,
+    borderRadius: Radii.md,
     paddingVertical: 18,
     alignItems: "center",
   },
   joinText: {
-    color: "#0A0A0F",
+    color: Colors.navyDeep,
     fontSize: 16,
     fontWeight: "900",
     letterSpacing: 3,

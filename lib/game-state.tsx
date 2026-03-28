@@ -4,13 +4,13 @@
 // ============================================
 
 import React, { createContext, useContext, useState, ReactNode } from "react";
+import { Colors } from "@/constants/theme";
 
-// Team colors — neon graffiti aesthetic
 export const TEAMS = {
-  red: { name: "VANDALS", color: "#FF2E63", glow: "#FF2E6366" },
-  blue: { name: "GHOSTS", color: "#08F7FE", glow: "#08F7FE66" },
-  green: { name: "GLITCH", color: "#39FF14", glow: "#39FF1466" },
-  yellow: { name: "NEON", color: "#FFE400", glow: "#FFE40066" },
+  red: { name: "VANDALS", color: Colors.teamRed, glow: Colors.teamRed + "44" },
+  blue: { name: "GHOSTS", color: Colors.teamCyan, glow: Colors.teamCyan + "44" },
+  green: { name: "GLITCH", color: Colors.teamGreen, glow: Colors.teamGreen + "44" },
+  yellow: { name: "NEON", color: Colors.teamYellow, glow: Colors.teamYellow + "44" },
 } as const;
 
 export type TeamId = keyof typeof TEAMS;
@@ -18,8 +18,10 @@ export type TeamId = keyof typeof TEAMS;
 interface GameState {
   username: string;
   teamId: TeamId;
+  isJoined: boolean;
   setUsername: (name: string) => void;
   setTeamId: (team: TeamId) => void;
+  join: () => void;
 }
 
 const GameContext = createContext<GameState | null>(null);
@@ -27,9 +29,14 @@ const GameContext = createContext<GameState | null>(null);
 export function GameProvider({ children }: { children: ReactNode }) {
   const [username, setUsername] = useState("");
   const [teamId, setTeamId] = useState<TeamId>("red");
+  const [isJoined, setIsJoined] = useState(false);
+
+  const join = () => setIsJoined(true);
 
   return (
-    <GameContext.Provider value={{ username, teamId, setUsername, setTeamId }}>
+    <GameContext.Provider
+      value={{ username, teamId, isJoined, setUsername, setTeamId, join }}
+    >
       {children}
     </GameContext.Provider>
   );
