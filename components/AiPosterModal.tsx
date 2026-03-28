@@ -1,5 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, ActivityIndicator } from "react-native";
+import React, { useState, useEffect } from "react";
+import {
+  View, Text, StyleSheet, TouchableOpacity,
+  Modal, TextInput, ActivityIndicator,
+} from "react-native";
 import { Image } from "expo-image";
 import { generateAiPoster } from "@/lib/ai-gen";
 import { Colors, Spacing, Radii, Typography } from "@/constants/theme";
@@ -10,73 +13,48 @@ interface AiPosterModalProps {
   onClose: () => void;
 }
 
-const IMAGE_LOAD_TIMEOUT = 15_000;
-
 export default function AiPosterModal({ visible, onConfirm, onClose }: AiPosterModalProps) {
-  const [prompt, setPrompt] = useState("");
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  const [genError, setGenError] = useState<string | null>(null);
-  const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const clearLoadTimeout = () => {
-    if (loadTimeoutRef.current) { clearTimeout(loadTimeoutRef.current); loadTimeoutRef.current = null; }
-  };
-
-  // Start 15s timeout whenever imageUrl is set and image hasn't loaded yet
-  useEffect(() => {
-    clearLoadTimeout();
-    if (imageUrl && !imageLoaded) {
-      loadTimeoutRef.current = setTimeout(() => {
-        setImageError(true);
-        setGenError("Imaginea nu s-a putut afișa. Încearcă din nou.");
-        setImageUrl(null);
-      }, IMAGE_LOAD_TIMEOUT);
-    }
-    return clearLoadTimeout;
-  }, [imageUrl]);
+  const [prompt, setPrompt]       = useState("");
+  const [imageUri, setImageUri]   = useState<string | null>(null);
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState<string | null>(null);
+  // ready = true după ce expo-image a terminat de decodat și redat imaginea
+  const [ready, setReady]         = useState(false);
 
   useEffect(() => {
     if (!visible) reset();
   }, [visible]);
 
   const reset = () => {
-    clearLoadTimeout();
-    setImageUrl(null);
+    setImageUri(null);
     setLoading(false);
-    setImageLoaded(false);
-    setImageError(false);
-    setGenError(null);
+    setError(null);
+    setReady(false);
   };
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
-    clearLoadTimeout();
     setLoading(true);
-    setImageUrl(null);
-    setImageLoaded(false);
-    setImageError(false);
-    setGenError(null);
+    setImageUri(null);
+    setError(null);
+    setReady(false);
     try {
-      const url = await generateAiPoster(prompt.trim());
-      setImageUrl(url);
+      const uri = await generateAiPoster(prompt.trim());
+      setImageUri(uri);
+      // expo-image va decoda data URI-ul și va apela onLoad când e gata
     } catch (e: any) {
-      setGenError(e?.message ?? "Generarea a eșuat. Încearcă din nou.");
+      setError(e?.message ?? "Generarea a eșuat. Încearcă din nou.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleConfirm = () => {
-    if (imageUrl && imageLoaded) {
-      clearLoadTimeout();
-      onConfirm(imageUrl);
-      setPrompt("");
-      reset();
-      onClose();
-    }
+    if (!imageUri || !ready) return;
+    onConfirm(imageUri);
+    setPrompt("");
+    reset();
+    onClose();
   };
 
   const handleClose = () => {
@@ -85,15 +63,12 @@ export default function AiPosterModal({ visible, onConfirm, onClose }: AiPosterM
     onClose();
   };
 
-  const canGenerate = !loading && prompt.trim().length > 0;
-  const showRetry = !loading && (genError !== null || imageError);
-  const showPlace = imageUrl !== null && imageLoaded && !imageError && !loading;
-  const showImageSpinner = imageUrl !== null && !imageLoaded && !imageError && !loading;
-
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
       <View style={styles.overlay}>
         <View style={styles.modal}>
+
+          {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>AI POSTER (150 tokens)</Text>
             <TouchableOpacity onPress={handleClose}>
@@ -101,78 +76,78 @@ export default function AiPosterModal({ visible, onConfirm, onClose }: AiPosterM
             </TouchableOpacity>
           </View>
 
+          {/* Prompt input */}
           <TextInput
             style={styles.input}
             value={prompt}
             onChangeText={setPrompt}
-            placeholder="Descrie posterul... (ex: cyberpunk graffiti)"
+            placeholder="Descrie posterul... (ex: cyberpunk city graffiti)"
             placeholderTextColor={Colors.muted}
             autoCapitalize="none"
             multiline
+            editable={!loading}
           />
 
-          {/* Generating spinner */}
+          {/* Spinner generare */}
           {loading && (
             <View style={styles.centerBox}>
               <ActivityIndicator size="large" color={Colors.itecBright} />
-              <Text style={styles.loadingText}>Se generează imaginea...</Text>
+              <Text style={styles.statusText}>Se generează imaginea...</Text>
+              <Text style={styles.hintText}>Poate dura 10–30 secunde</Text>
             </View>
           )}
 
-          {/* Image loading spinner */}
-          {showImageSpinner && (
+          {/* Eroare */}
+          {error && !loading && (
             <View style={styles.centerBox}>
-              <ActivityIndicator size="large" color={Colors.itecBright} />
-              <Text style={styles.loadingText}>Se încarcă imaginea...</Text>
+              <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
 
-          {/* Error */}
-          {genError && !loading && (
-            <View style={styles.centerBox}>
-              <Text style={styles.errorText}>{genError}</Text>
+          {/* Preview — data URI decodat de expo-image */}
+          {imageUri && !loading && !error && (
+            <View style={styles.previewBox}>
+              {!ready && (
+                <View style={styles.centerBox}>
+                  <ActivityIndicator size="small" color={Colors.itecBright} />
+                  <Text style={styles.hintText}>Se afișează imaginea...</Text>
+                </View>
+              )}
+              <Image
+                source={{ uri: imageUri }}
+                style={[styles.preview, !ready && { width: 0, height: 0 }]}
+                contentFit="contain"
+                onLoad={() => setReady(true)}
+                onError={() => setError("Afișarea a eșuat. Încearcă din nou.")}
+              />
             </View>
           )}
 
-          {/* Preview — hidden (0x0) until loaded */}
-          {imageUrl && !loading && (
-            <Image
-              source={{ uri: imageUrl }}
-              style={showPlace ? styles.preview : { width: 0, height: 0 }}
-              contentFit="contain"
-              onLoad={() => { clearLoadTimeout(); setImageLoaded(true); }}
-              onError={() => {
-                clearLoadTimeout();
-                setImageLoaded(false);
-                setImageError(true);
-                setImageUrl(null);
-                setGenError("Imaginea nu s-a putut afișa. Încearcă din nou.");
-              }}
-            />
-          )}
-
-          {/* Actions */}
+          {/* Acțiuni */}
           <View style={styles.actions}>
-            {!loading && (showRetry || !imageUrl) && (
+            {!loading && (!imageUri || error) && (
               <TouchableOpacity
-                style={[styles.generateBtn, !canGenerate && { opacity: 0.4 }]}
+                style={[styles.generateBtn, !prompt.trim() && { opacity: 0.4 }]}
                 onPress={handleGenerate}
-                disabled={!canGenerate}
+                disabled={!prompt.trim()}
               >
-                <Text style={styles.generateText}>{genError ? "RETRY" : "GENERATE"}</Text>
+                <Text style={styles.generateText}>{error ? "RETRY" : "GENERATE"}</Text>
               </TouchableOpacity>
             )}
-            {showPlace && (
+            {imageUri && !loading && !error && (
               <>
                 <TouchableOpacity style={styles.retryBtn} onPress={handleGenerate}>
                   <Text style={styles.retryText}>RETRY</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm}>
-                  <Text style={styles.confirmText}>PLACE ON CANVAS</Text>
-                </TouchableOpacity>
+                {ready && (
+                  <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm}>
+                    <Text style={styles.confirmText}>PLACE ON CANVAS</Text>
+                  </TouchableOpacity>
+                )}
               </>
             )}
           </View>
+
         </View>
       </View>
     </Modal>
@@ -181,20 +156,42 @@ export default function AiPosterModal({ visible, onConfirm, onClose }: AiPosterM
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end" },
-  modal: { backgroundColor: Colors.navyMid, borderTopLeftRadius: Radii.xl, borderTopRightRadius: Radii.xl, padding: Spacing.xl, maxHeight: "80%" },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: Spacing.lg },
+  modal: {
+    backgroundColor: Colors.navyMid,
+    borderTopLeftRadius: Radii.xl, borderTopRightRadius: Radii.xl,
+    padding: Spacing.xl, maxHeight: "85%",
+  },
+  header: {
+    flexDirection: "row", justifyContent: "space-between",
+    alignItems: "center", marginBottom: Spacing.lg,
+  },
   title: { ...Typography.h2, color: Colors.white },
   close: { color: Colors.softGray, fontSize: 20 },
-  input: { borderWidth: 1, borderColor: Colors.navyLight, borderRadius: Radii.md, padding: Spacing.md, color: Colors.white, fontSize: 14, minHeight: 60, textAlignVertical: "top", marginBottom: Spacing.md },
-  centerBox: { alignItems: "center", paddingVertical: Spacing.xl, gap: Spacing.md },
-  loadingText: { color: Colors.softGray, fontSize: 12, letterSpacing: 2 },
+  input: {
+    borderWidth: 1, borderColor: Colors.navyLight, borderRadius: Radii.md,
+    padding: Spacing.md, color: Colors.white, fontSize: 14,
+    minHeight: 60, textAlignVertical: "top", marginBottom: Spacing.md,
+  },
+  centerBox: { alignItems: "center", paddingVertical: Spacing.xl, gap: Spacing.sm },
+  statusText: { color: Colors.softGray, fontSize: 12, fontWeight: "700", letterSpacing: 2 },
+  hintText: { color: Colors.muted, fontSize: 11, letterSpacing: 1 },
   errorText: { color: Colors.error, fontSize: 12, letterSpacing: 1, textAlign: "center" },
-  preview: { width: 200, height: 200, borderRadius: Radii.md, alignSelf: "center", marginBottom: Spacing.md },
+  previewBox: { alignItems: "center", marginBottom: Spacing.md },
+  preview: { width: 220, height: 220, borderRadius: Radii.md },
   actions: { flexDirection: "row", gap: Spacing.md, justifyContent: "center", marginTop: Spacing.sm },
-  generateBtn: { backgroundColor: Colors.itecBlue, paddingHorizontal: Spacing.xxl, paddingVertical: Spacing.md, borderRadius: Radii.md },
+  generateBtn: {
+    backgroundColor: Colors.itecBlue,
+    paddingHorizontal: Spacing.xxl, paddingVertical: Spacing.md, borderRadius: Radii.md,
+  },
   generateText: { color: Colors.white, fontWeight: "800", fontSize: 14, letterSpacing: 2 },
-  retryBtn: { borderWidth: 1, borderColor: Colors.navyLight, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md, borderRadius: Radii.md },
+  retryBtn: {
+    borderWidth: 1, borderColor: Colors.navyLight,
+    paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md, borderRadius: Radii.md,
+  },
   retryText: { color: Colors.softGray, fontWeight: "700", fontSize: 12, letterSpacing: 2 },
-  confirmBtn: { backgroundColor: Colors.success, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md, borderRadius: Radii.md },
+  confirmBtn: {
+    backgroundColor: Colors.success,
+    paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md, borderRadius: Radii.md,
+  },
   confirmText: { color: Colors.navyDeep, fontWeight: "800", fontSize: 12, letterSpacing: 2 },
 });

@@ -1,50 +1,61 @@
-const HF_API_KEY = process.env.EXPO_PUBLIC_HF_API_KEY;
-const HF_MODEL = "black-forest-labs/FLUX.1-schnell";
+// Generare imagini AI via Google Gemini 2.0 Flash
+// Returnează un data URI (base64) care se afișează direct în expo-image
 
-// Manual base64 encoder — does NOT use btoa() which breaks in Hermes for bytes > 127
-const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-function toBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  const out: string[] = [];
-  for (let i = 0; i < bytes.length; i += 3) {
-    const b0 = bytes[i];
-    const b1 = i + 1 < bytes.length ? bytes[i + 1] : 0;
-    const b2 = i + 2 < bytes.length ? bytes[i + 2] : 0;
-    out.push(
-      B64[b0 >> 2],
-      B64[((b0 & 3) << 4) | (b1 >> 4)],
-      i + 1 < bytes.length ? B64[((b1 & 15) << 2) | (b2 >> 6)] : "=",
-      i + 2 < bytes.length ? B64[b2 & 63] : "=",
-    );
-  }
-  return out.join("");
-}
+const GEMINI_ENDPOINT =
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=AIzaSyDdalOcz4g-VzyaeI7CANlnP5jVFahm8nU";
 
 export async function generateAiPoster(prompt: string): Promise<string> {
-  const response = await fetch(
-    `https://router.huggingface.co/hf-inference/models/${HF_MODEL}`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${HF_API_KEY}`,
-        "Content-Type": "application/json",
+  const body = {
+    contents: [
+      {
+        parts: [
+          { text: `Generate an image of: ${prompt.trim()}` },
+        ],
       },
-      body: JSON.stringify({
-        inputs: prompt,
-        parameters: { width: 256, height: 256 },
-      }),
-    }
-  );
+    ],
+    generationConfig: {
+      responseModalities: ["TEXT", "IMAGE"],
+    },
+  };
 
-  if (!response.ok) {
-    const text = await response.text().catch(() => response.statusText);
-    throw new Error(`Generare eșuată (${response.status}): ${text}`);
+  let response: Response;
+  try {
+    response = await fetch(GEMINI_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error("Eroare de rețea. Verifică conexiunea la internet.");
   }
 
-  const buffer = await response.arrayBuffer();
-  if (buffer.byteLength === 0) throw new Error("Răspuns gol de la server");
+  if (response.status === 429) {
+    throw new Error("Rate limit depășit. Încearcă din nou în câteva secunde.");
+  }
+  if (!response.ok) {
+    throw new Error(`Eroare API Gemini (${response.status}). Încearcă din nou.`);
+  }
 
-  const base64 = toBase64(buffer);
-  const contentType = response.headers.get("content-type") ?? "image/png";
-  return `data:${contentType};base64,${base64}`;
+  let json: any;
+  try {
+    json = await response.json();
+  } catch {
+    throw new Error("Răspuns invalid de la server. Încearcă din nou.");
+  }
+
+  const parts: any[] = json?.candidates?.[0]?.content?.parts ?? [];
+  const imagePart = parts.find((p) => p.inlineData != null);
+
+  if (!imagePart) {
+    const textPart = parts.find((p) => p.text);
+    if (textPart?.text) {
+      throw new Error(`Imaginea a fost blocată: ${textPart.text.slice(0, 80)}`);
+    }
+    throw new Error("Gemini nu a generat o imagine. Modifică promptul și încearcă din nou.");
+  }
+
+  const { mimeType, data } = imagePart.inlineData;
+
+  // Base64-ul vine gata encodat din JSON — construim doar data URI-ul
+  return `data:${mimeType};base64,${data}`;
 }

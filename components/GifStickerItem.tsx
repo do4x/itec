@@ -137,7 +137,7 @@ export default function GifStickerItem({
 
   const content = (
     <Animated.View style={[styles.container, animStyle]}>
-      <Image source={{ uri: gif.url }} style={styles.image} contentFit="contain" />
+      <Image source={{ uri: gif.url }} style={styles.image} contentFit="contain" cachePolicy="memory-disk" />
       {isSelected && <View style={styles.selectionBorder} />}
       {isSelected && (
         <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
@@ -150,7 +150,7 @@ export default function GifStickerItem({
   if (!interactive) {
     return (
       <Animated.View style={[styles.container, animStyle]} pointerEvents="none">
-        <Image source={{ uri: gif.url }} style={styles.image} contentFit="contain" />
+        <Image source={{ uri: gif.url }} style={styles.image} contentFit="contain" cachePolicy="memory-disk" />
       </Animated.View>
     );
   }
