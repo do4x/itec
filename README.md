@@ -1,87 +1,144 @@
-# iTEC: OVERRIDE — Vandalism Digital Colaborativ
+# <img src="assets/images/icon.png" width="32" height="32" alt="icon" /> iTEC: OVERRIDE
 
-## Quick Start (5 minute)
+**Collaborative digital vandalism platform** — Scan real-world posters, claim them with pixel art, compete for territory in real-time.
+
+Built for the **iTEC 2026 Hackathon** · Mobile Development Track
+
+---
+
+## The Concept
+
+Every poster in the building is a battlefield. Scan it with your phone, and it becomes a shared digital canvas. Draw pixel graffiti, stamp patterns, generate AI art, and fight other teams for ownership — all synchronized in real-time across every device.
+
+Think **r/place** meets **AR poster scanning**.
+
+## How It Works
+
+```
+Sign up → Pick a team → Scan a poster → Draw on it → Compete for territory
+```
+
+1. **Scan** — Point your camera at any of the 10 physical posters. AI vision identifies which one it is.
+2. **Create** — Draw pixels, stamp graffiti patterns, place GIF stickers, or generate AI art from text prompts.
+3. **Compete** — Every action costs tokens. Every pixel can be overwritten by a rival team.
+4. **Dominate** — The team with the most surface area on a poster owns it. Own the most posters to win.
+
+## Features
+
+**Core**
+- 📸 AI-powered poster recognition (Claude Vision API)
+- 🎨 40×40 pixel grid canvas with real-time sync
+- 🗺️ Custom GPS grid map with live territory tracking
+- ⚔️ Token economy (earn, spend, compete)
+- 👥 4-team system with territory warfare
+
+**Canvas Tools**
+- Pixel brush + eraser
+- 8 graffiti stamp patterns (heart, skull, crown, lightning, etc.)
+- GIF/sticker placement with drag, pinch, rotate
+- AI art generation via text prompt
+- Team anthem system (audio attached to posters)
+
+**Game System**
+- Start with 100 tokens, earn +20/minute
+- Pixel = 10 tokens, Graffiti = 50, Sticker = 100, AI Art = 150
+- Override rival pixels, delete their stickers
+- Territory leaderboard per poster and global
+
+**Social**
+- Real-time activity feed with 7 event types
+- Push notifications with haptic feedback
+- Glitch animation when rivals overwrite your work
+- Jury mode with special access code
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | React Native + Expo (SDK 54) |
+| Routing | Expo Router (file-based) |
+| Database | Firebase Realtime Database |
+| Auth | Firebase Anonymous Authentication |
+| Poster Recognition | Anthropic Claude Vision API (Sonnet) |
+| AI Art | Pollinations.ai (free, no key required) |
+| Drawing | react-native-svg (40×40 pixel grid) |
+| Animations | react-native-reanimated |
+| Location | expo-location |
+| Haptics | expo-haptics |
+
+## Setup
 
 ```bash
-# 1. Dezarhivează proiectul
-unzip itec-override.zip
-cd itec-override
+# Clone
+git clone https://github.com/do4x/itec.git
+cd itec
 
-# 2. Instalează dependințele
+# Install
 npm install
 
-# 3. Configurează Firebase (vezi mai jos)
-# Editează lib/firebase.ts cu datele tale
+# Configure
+cp .env.example .env
+# Fill in Firebase + Anthropic API keys in .env
 
-# 4. Pornește
-npx expo start
-
-# 5. Scanează QR-ul cu Expo Go pe telefon
+# Run
+npx expo start --tunnel --clear
 ```
 
-## Firebase Setup (10 minute)
+### Required Configuration
 
-1. Mergi pe https://console.firebase.google.com
-2. Click Create Project, numește-l itec-override
-3. Dezactivează Google Analytics (nu ai nevoie)
-4. Din sidebar: Build, Realtime Database, Create Database
-5. Alege Europe (eu-west1) ca locație
-6. Selectează Start in TEST MODE (permite read/write fără auth)
-7. Din sidebar: Project Settings, scroll la Your apps, click Web icon
-8. Numește app-ul, click Register
-9. Copiază firebaseConfig obiectul
-10. Lipește-l în lib/firebase.ts, înlocuind valorile placeholder
+| Key | Where to get it |
+|-----|----------------|
+| `EXPO_PUBLIC_FIREBASE_*` | [Firebase Console](https://console.firebase.google.com) → Project Settings → Web App |
+| `EXPO_PUBLIC_ANTHROPIC_API_KEY` | [Anthropic Console](https://console.anthropic.com/settings/keys) |
+| `EXPO_PUBLIC_GIPHY_API_KEY` | [Giphy Developers](https://developers.giphy.com) |
 
-Test mode expiră după 30 de zile. Perfect pentru hackathon.
+Firebase setup: Create project → enable **Realtime Database** (Europe, test mode) → enable **Anonymous** sign-in under Authentication.
 
-## Structura Proiectului
+## Project Structure
 
 ```
-itec-override/
-├── app/
-│   ├── _layout.tsx          Root layout (providers, theme)
-│   ├── index.tsx            HOME: username + team selection
-│   ├── scanner.tsx          SCANNER: camera QR + dev buttons
-│   ├── canvas/
-│   │   └── [posterId].tsx   CANVAS: drawing surface + real-time sync
-│   └── map.tsx              MAP: territory overview
-├── lib/
-│   ├── firebase.ts          Firebase config + exports
-│   └── game-state.tsx       Global state (username, team)
-├── components/              Componente reutilizabile
-└── assets/                  Imagini, fonturi
+app/
+├── index.tsx                 Onboarding (username, team, jury code)
+├── (tabs)/
+│   ├── index.tsx             GPS grid map with territory pins
+│   ├── scan.tsx              Camera-based poster scanner
+│   └── feed.tsx              Real-time activity feed
+└── canvas/
+    └── [posterId].tsx        Pixel grid canvas + all tools
+
+components/                   PixelGrid, GridMap, GraffitiPicker,
+                              AiPosterModal, GifStickerItem, etc.
+
+lib/                          firebase, auth, tokens, territory,
+                              notifications, poster-matcher, ai-gen
+
+constants/                    theme, poster-locations, graffiti-patterns
 ```
 
-## Flow-ul Aplicației
+## The 10 Posters
 
-HOME (username + echipă) → SCANNER (scanezi QR) → CANVAS (desenezi) → MAP (vezi teritorii)
+| # | Poster | Visual |
+|---|--------|--------|
+| 1 | Boost Your Social Presence | 🔵 Dark blue, 3D megaphone |
+| 2 | Digital Marketing Agency | 🔴 Red circles layout |
+| 3 | Digital Marketing Agency | 🟣 Purple curves layout |
+| 4 | Creează fără limite | 🔴 Red itec can |
+| 5 | Best Burger in Town | 🍔 Dark + cream split |
+| 6 | Form Follows Function | 🟢 Architecture, neon green |
+| 7 | Explore the World | 🔵 Navy, travel photos |
+| 8 | Fashion Business | 🩷 Hot pink magazine |
+| 9 | Exclusive Edition Sneakers | 🔵 Blue shoe, 50% off |
+| 10 | itec Yellow | 🟡 Yellow banner |
 
-## Împărțirea Muncii la Hackathon
+## Team
 
-### DENIS (Backend + Logic)
-- Firebase setup + config
-- Real-time sync optimization (stroke batching)
-- Territory calculation engine
-- Scanner navigation flow
-- Audio Proximity Trigger (side-quest)
+Built in ~24 hours by two people who had never built a mobile app before.
 
-### TOVARĂȘUL TĂU (UI + Canvas + Polish)  
-- Canvas drawing upgrade (Skia dacă faceți dev build)
-- UI polish pe toate ecranele
-- Color picker + brush UI
-- Glitch animation
-- Haptic feedback patterns
-- AI Tag Generator (side-quest)
+- **Denis** — Map, UI/UX, prompt engineering, scanning system
+- **Andrei** — Pixel grid, game logic, Firebase backend, canvas tools
 
-## Generare QR Codes
+Powered by Claude Code (VS Code) + Cursor.
 
-Printați QR codes care conțin text simplu: poster_001, poster_002, etc.
-Lipiți-le pe pereți. Scanner-ul le citește automat.
-Generator: https://www.qr-code-generator.com
+---
 
-## Comenzi Utile
-
-```bash
-npx expo start          # Pornește dev server
-npx expo start --clear  # Pornește cu cache curat
-```
+*iTEC 2026 · Facultatea de Automatică și Calculatoare · Timișoara*
