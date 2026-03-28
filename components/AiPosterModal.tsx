@@ -10,57 +10,85 @@ interface AiPosterModalProps {
   onClose: () => void;
 }
 
+const IMAGE_LOAD_TIMEOUT = 15_000;
+
 export default function AiPosterModal({ visible, onConfirm, onClose }: AiPosterModalProps) {
   const [prompt, setPrompt] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [genError, setGenError] = useState<string | null>(null);
+  const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const clearImageTimeout = () => {
-    if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+  const clearLoadTimeout = () => {
+    if (loadTimeoutRef.current) { clearTimeout(loadTimeoutRef.current); loadTimeoutRef.current = null; }
   };
 
-  useEffect(() => () => clearImageTimeout(), []);
+  // Start 15s timeout whenever imageUrl is set and image hasn't loaded yet
+  useEffect(() => {
+    clearLoadTimeout();
+    if (imageUrl && !imageLoaded) {
+      loadTimeoutRef.current = setTimeout(() => {
+        setImageError(true);
+        setGenError("Imaginea nu s-a putut afișa. Încearcă din nou.");
+        setImageUrl(null);
+      }, IMAGE_LOAD_TIMEOUT);
+    }
+    return clearLoadTimeout;
+  }, [imageUrl]);
+
+  useEffect(() => {
+    if (!visible) reset();
+  }, [visible]);
+
+  const reset = () => {
+    clearLoadTimeout();
+    setImageUrl(null);
+    setLoading(false);
+    setImageLoaded(false);
+    setImageError(false);
+    setGenError(null);
+  };
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
-    clearImageTimeout();
+    clearLoadTimeout();
     setLoading(true);
     setImageUrl(null);
     setImageLoaded(false);
     setImageError(false);
-    const url = await generateAiPoster(prompt.trim());
-    setImageUrl(url);
-    setLoading(false);
-    // Auto-fail after 45s if image never fires onLoad
-    timeoutRef.current = setTimeout(() => {
-      setImageLoaded((loaded) => { if (!loaded) setImageError(true); return loaded; });
-    }, 45_000);
+    setGenError(null);
+    try {
+      const url = await generateAiPoster(prompt.trim());
+      setImageUrl(url);
+    } catch (e: any) {
+      setGenError(e?.message ?? "Generarea a eșuat. Încearcă din nou.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleConfirm = () => {
     if (imageUrl && imageLoaded) {
-      clearImageTimeout();
+      clearLoadTimeout();
       onConfirm(imageUrl);
       setPrompt("");
-      setImageUrl(null);
-      setImageLoaded(false);
-      setImageError(false);
+      reset();
       onClose();
     }
   };
 
   const handleClose = () => {
-    clearImageTimeout();
     setPrompt("");
-    setImageUrl(null);
-    setLoading(false);
-    setImageLoaded(false);
-    setImageError(false);
+    reset();
     onClose();
   };
+
+  const canGenerate = !loading && prompt.trim().length > 0;
+  const showRetry = !loading && (genError !== null || imageError);
+  const showPlace = imageUrl !== null && imageLoaded && !imageError && !loading;
+  const showImageSpinner = imageUrl !== null && !imageLoaded && !imageError && !loading;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
@@ -77,56 +105,71 @@ export default function AiPosterModal({ visible, onConfirm, onClose }: AiPosterM
             style={styles.input}
             value={prompt}
             onChangeText={setPrompt}
-            placeholder="Describe your poster... (e.g. cyberpunk graffiti)"
+            placeholder="Descrie posterul... (ex: cyberpunk graffiti)"
             placeholderTextColor={Colors.muted}
             autoCapitalize="none"
             multiline
           />
 
+          {/* Generating spinner */}
           {loading && (
-            <View style={styles.loadingBox}>
+            <View style={styles.centerBox}>
               <ActivityIndicator size="large" color={Colors.itecBright} />
-              <Text style={styles.loadingText}>Generating...</Text>
+              <Text style={styles.loadingText}>Se generează imaginea...</Text>
             </View>
           )}
 
+          {/* Image loading spinner */}
+          {showImageSpinner && (
+            <View style={styles.centerBox}>
+              <ActivityIndicator size="large" color={Colors.itecBright} />
+              <Text style={styles.loadingText}>Se încarcă imaginea...</Text>
+            </View>
+          )}
+
+          {/* Error */}
+          {genError && !loading && (
+            <View style={styles.centerBox}>
+              <Text style={styles.errorText}>{genError}</Text>
+            </View>
+          )}
+
+          {/* Preview — hidden (0x0) until loaded */}
           {imageUrl && !loading && (
-            <View style={styles.previewBox}>
-              {!imageLoaded && !imageError && (
-                <View style={styles.loadingBox}>
-                  <ActivityIndicator size="large" color={Colors.itecBright} />
-                  <Text style={styles.loadingText}>Se încarcă imaginea...</Text>
-                </View>
-              )}
-              {imageError && (
-                <Text style={styles.errorText}>Generarea a eșuat. Încearcă din nou.</Text>
-              )}
-              <Image
-                source={{ uri: imageUrl }}
-                style={[styles.preview, (!imageLoaded || imageError) && { width: 0, height: 0 }]}
-                contentFit="contain"
-                onLoad={() => setImageLoaded(true)}
-                onError={() => { setImageLoaded(false); setImageError(true); }}
-              />
-            </View>
+            <Image
+              source={{ uri: imageUrl }}
+              style={showPlace ? styles.preview : { width: 0, height: 0 }}
+              contentFit="contain"
+              onLoad={() => { clearLoadTimeout(); setImageLoaded(true); }}
+              onError={() => {
+                clearLoadTimeout();
+                setImageLoaded(false);
+                setImageError(true);
+                setImageUrl(null);
+                setGenError("Imaginea nu s-a putut afișa. Încearcă din nou.");
+              }}
+            />
           )}
 
+          {/* Actions */}
           <View style={styles.actions}>
-            {!imageUrl && !loading && (
-              <TouchableOpacity style={styles.generateBtn} onPress={handleGenerate} disabled={!prompt.trim()}>
-                <Text style={styles.generateText}>GENERATE</Text>
+            {!loading && (showRetry || !imageUrl) && (
+              <TouchableOpacity
+                style={[styles.generateBtn, !canGenerate && { opacity: 0.4 }]}
+                onPress={handleGenerate}
+                disabled={!canGenerate}
+              >
+                <Text style={styles.generateText}>{genError ? "RETRY" : "GENERATE"}</Text>
               </TouchableOpacity>
             )}
-            {imageUrl && !loading && (
+            {showPlace && (
               <>
                 <TouchableOpacity style={styles.retryBtn} onPress={handleGenerate}>
                   <Text style={styles.retryText}>RETRY</Text>
                 </TouchableOpacity>
-                {imageLoaded && !imageError && (
-                  <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm}>
-                    <Text style={styles.confirmText}>PLACE ON CANVAS</Text>
-                  </TouchableOpacity>
-                )}
+                <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm}>
+                  <Text style={styles.confirmText}>PLACE ON CANVAS</Text>
+                </TouchableOpacity>
               </>
             )}
           </View>
@@ -143,12 +186,11 @@ const styles = StyleSheet.create({
   title: { ...Typography.h2, color: Colors.white },
   close: { color: Colors.softGray, fontSize: 20 },
   input: { borderWidth: 1, borderColor: Colors.navyLight, borderRadius: Radii.md, padding: Spacing.md, color: Colors.white, fontSize: 14, minHeight: 60, textAlignVertical: "top", marginBottom: Spacing.md },
-  loadingBox: { alignItems: "center", padding: Spacing.xxl, gap: Spacing.md },
+  centerBox: { alignItems: "center", paddingVertical: Spacing.xl, gap: Spacing.md },
   loadingText: { color: Colors.softGray, fontSize: 12, letterSpacing: 2 },
-  errorText: { color: Colors.error, fontSize: 12, letterSpacing: 1, textAlign: "center", marginBottom: Spacing.md },
-  previewBox: { alignItems: "center", marginBottom: Spacing.md },
-  preview: { width: 200, height: 200, borderRadius: Radii.md },
-  actions: { flexDirection: "row", gap: Spacing.md, justifyContent: "center" },
+  errorText: { color: Colors.error, fontSize: 12, letterSpacing: 1, textAlign: "center" },
+  preview: { width: 200, height: 200, borderRadius: Radii.md, alignSelf: "center", marginBottom: Spacing.md },
+  actions: { flexDirection: "row", gap: Spacing.md, justifyContent: "center", marginTop: Spacing.sm },
   generateBtn: { backgroundColor: Colors.itecBlue, paddingHorizontal: Spacing.xxl, paddingVertical: Spacing.md, borderRadius: Radii.md },
   generateText: { color: Colors.white, fontWeight: "800", fontSize: 14, letterSpacing: 2 },
   retryBtn: { borderWidth: 1, borderColor: Colors.navyLight, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md, borderRadius: Radii.md },
