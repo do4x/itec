@@ -323,7 +323,7 @@ export default function CanvasScreen() {
       url, x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, scale: 1, rotation: 0, teamId, username, uid, type: "ai_poster",
     });
     if (aiRef.key) {
-      setGifs((prev) => [...prev, { id: aiRef.key!, url, x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, scale: 1, rotation: 0 }]);
+      setGifs((prev) => prev.find((g) => g.id === aiRef.key) ? prev : [...prev, { id: aiRef.key!, url, x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, scale: 1, rotation: 0 }]);
       setSelectedGifId(aiRef.key);
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -493,27 +493,29 @@ export default function CanvasScreen() {
 
       {/* Toolbar */}
       <ScrollView style={styles.toolbarScroll} contentContainerStyle={styles.toolbarContent}>
-        <View style={styles.toolRow}>
-          {([
-            { tool: "pixel" as Tool, icon: "grid-outline" as const },
-            { tool: "eraser" as Tool, icon: "backspace-outline" as const },
-            { tool: "graffiti" as Tool, icon: "color-fill-outline" as const },
-            { tool: "sticker" as Tool, icon: "happy-outline" as const },
-          ]).map(({ tool, icon }) => (
-            <TouchableOpacity
-              key={tool}
-              style={[styles.toolButton, activeTool === tool && styles.toolButtonActive]}
-              onPress={() => {
-                setActiveTool(tool);
-                setSelectedGifId(null);
-                if (tool !== "graffiti") setPendingGraffiti(null);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }}
-            >
-              <Ionicons name={icon} size={22} color={activeTool === tool ? Colors.itecBright : Colors.softGray} />
-            </TouchableOpacity>
-          ))}
-        </View>
+        {!pendingGraffiti && (
+          <View style={styles.toolRow}>
+            {([
+              { tool: "pixel" as Tool, icon: "grid-outline" as const },
+              { tool: "eraser" as Tool, icon: "backspace-outline" as const },
+              { tool: "graffiti" as Tool, icon: "color-fill-outline" as const },
+              { tool: "sticker" as Tool, icon: "happy-outline" as const },
+            ]).map(({ tool, icon }) => (
+              <TouchableOpacity
+                key={tool}
+                style={[styles.toolButton, activeTool === tool && styles.toolButtonActive]}
+                onPress={() => {
+                  setActiveTool(tool);
+                  setSelectedGifId(null);
+                  if (tool !== "graffiti") setPendingGraffiti(null);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+              >
+                <Ionicons name={icon} size={22} color={activeTool === tool ? Colors.itecBright : Colors.softGray} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         {activeTool === "pixel" && (
           <View style={styles.colorRow}>
@@ -582,6 +584,12 @@ export default function CanvasScreen() {
               <Ionicons name="sparkles" size={20} color={Colors.itecBright} />
               <Text style={styles.addGifText}>AI ART (150)</Text>
             </TouchableOpacity>
+            {anthem?.teamId !== teamId ? (
+              <TouchableOpacity style={styles.addGifBtn} onPress={() => setShowAnthemPicker(true)}>
+                <Ionicons name="musical-notes-outline" size={20} color={Colors.itecBright} />
+                <Text style={styles.addGifText}>ANTHEM (100)</Text>
+              </TouchableOpacity>
+            ) : null}
             {selectedGifId && (
               <TouchableOpacity style={styles.deleteGifBtn} onPress={() => handleDeleteGif(selectedGifId)}>
                 <Ionicons name="trash-outline" size={20} color={Colors.error} />
@@ -591,9 +599,9 @@ export default function CanvasScreen() {
           </View>
         )}
 
-        {/* Anthem */}
-        <View style={styles.anthemRow}>
-          {anthem?.teamId === teamId ? (
+        {/* Anthem active status */}
+        {!pendingGraffiti && anthem?.teamId === teamId && (
+          <View style={styles.anthemRow}>
             <View style={styles.anthemActiveRow}>
               <Ionicons name="musical-notes" size={15} color={teamColor} />
               <View style={{ flex: 1 }}>
@@ -608,13 +616,8 @@ export default function CanvasScreen() {
                 <Ionicons name="close-circle" size={16} color={Colors.error} />
               </TouchableOpacity>
             </View>
-          ) : (
-            <TouchableOpacity style={styles.setAnthemBtn} onPress={() => setShowAnthemPicker(true)}>
-              <Ionicons name="musical-notes-outline" size={15} color={Colors.softGray} />
-              <Text style={styles.setAnthemText}>SET ANTHEM (100)</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+          </View>
+        )}
       </ScrollView>
 
       <GifPickerModal visible={showGifPicker} onSelect={handleAddGif} onClose={() => setShowGifPicker(false)} />

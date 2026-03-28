@@ -98,7 +98,7 @@ export default function GifStickerItem({
   const pinchGesture = Gesture.Pinch()
     .onStart(() => { savedScale.value = scale.value; })
     .onUpdate((e) => {
-      scale.value = Math.max(0.3, Math.min(5, savedScale.value * e.scale));
+      scale.value = Math.max(0.3, Math.min(1.6, savedScale.value * e.scale));
     })
     .onEnd(() => {
       runOnJS(persist)(translateX.value, translateY.value, scale.value, rotation.value);
