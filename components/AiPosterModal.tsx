@@ -14,21 +14,27 @@ export default function AiPosterModal({ visible, onConfirm, onClose }: AiPosterM
   const [prompt, setPrompt] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
     setLoading(true);
     setImageUrl(null);
+    setImageLoaded(false);
+    setImageError(false);
     const url = await generateAiPoster(prompt.trim());
     setImageUrl(url);
     setLoading(false);
   };
 
   const handleConfirm = () => {
-    if (imageUrl) {
+    if (imageUrl && imageLoaded) {
       onConfirm(imageUrl);
       setPrompt("");
       setImageUrl(null);
+      setImageLoaded(false);
+      setImageError(false);
       onClose();
     }
   };
@@ -37,6 +43,8 @@ export default function AiPosterModal({ visible, onConfirm, onClose }: AiPosterM
     setPrompt("");
     setImageUrl(null);
     setLoading(false);
+    setImageLoaded(false);
+    setImageError(false);
     onClose();
   };
 
@@ -70,7 +78,22 @@ export default function AiPosterModal({ visible, onConfirm, onClose }: AiPosterM
 
           {imageUrl && !loading && (
             <View style={styles.previewBox}>
-              <Image source={{ uri: imageUrl }} style={styles.preview} contentFit="contain" />
+              {!imageLoaded && !imageError && (
+                <View style={styles.loadingBox}>
+                  <ActivityIndicator size="large" color={Colors.itecBright} />
+                  <Text style={styles.loadingText}>Se încarcă imaginea...</Text>
+                </View>
+              )}
+              {imageError && (
+                <Text style={styles.errorText}>Generarea a eșuat. Încearcă din nou.</Text>
+              )}
+              <Image
+                source={{ uri: imageUrl }}
+                style={[styles.preview, (!imageLoaded || imageError) && { width: 0, height: 0 }]}
+                contentFit="contain"
+                onLoad={() => setImageLoaded(true)}
+                onError={() => { setImageLoaded(false); setImageError(true); }}
+              />
             </View>
           )}
 
@@ -85,9 +108,11 @@ export default function AiPosterModal({ visible, onConfirm, onClose }: AiPosterM
                 <TouchableOpacity style={styles.retryBtn} onPress={handleGenerate}>
                   <Text style={styles.retryText}>RETRY</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm}>
-                  <Text style={styles.confirmText}>PLACE ON CANVAS</Text>
-                </TouchableOpacity>
+                {imageLoaded && !imageError && (
+                  <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm}>
+                    <Text style={styles.confirmText}>PLACE ON CANVAS</Text>
+                  </TouchableOpacity>
+                )}
               </>
             )}
           </View>
@@ -106,6 +131,7 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderColor: Colors.navyLight, borderRadius: Radii.md, padding: Spacing.md, color: Colors.white, fontSize: 14, minHeight: 60, textAlignVertical: "top", marginBottom: Spacing.md },
   loadingBox: { alignItems: "center", padding: Spacing.xxl, gap: Spacing.md },
   loadingText: { color: Colors.softGray, fontSize: 12, letterSpacing: 2 },
+  errorText: { color: Colors.error, fontSize: 12, letterSpacing: 1, textAlign: "center", marginBottom: Spacing.md },
   previewBox: { alignItems: "center", marginBottom: Spacing.md },
   preview: { width: 200, height: 200, borderRadius: Radii.md },
   actions: { flexDirection: "row", gap: Spacing.md, justifyContent: "center" },
