@@ -62,9 +62,7 @@ type Tool = "pixel" | "eraser" | "sticker" | "graffiti";
 export default function CanvasScreen() {
   const { posterId, photoUri } = useLocalSearchParams<{ posterId: string; photoUri?: string }>();
   const isValidPoster = VALID_POSTER_IDS.includes(posterId as any);
-  const posterImage = photoUri
-    ? { uri: photoUri }
-    : (POSTER_IMAGES[posterId as string] ?? null);
+  const posterImage = POSTER_IMAGES[posterId as string] ?? (photoUri ? { uri: photoUri } : null);
   const { uid, username, teamId } = useGame();
   const teamColor = TEAMS[teamId].color;
   const insets = useSafeAreaInsets();
