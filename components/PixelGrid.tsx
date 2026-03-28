@@ -111,7 +111,7 @@ export default function PixelGrid({
   return (
     <View style={[styles.container, { width, height }]}>
       {backgroundImage && (
-        <RNImage source={backgroundImage} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        <RNImage source={backgroundImage} style={StyleSheet.absoluteFill} resizeMode="contain" />
       )}
       <Svg width={width} height={height}>
         {!backgroundImage && <Rect x={0} y={0} width={width} height={height} fill={Colors.navyDeep} />}

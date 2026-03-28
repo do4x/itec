@@ -147,7 +147,13 @@ export default function GifStickerItem({
     </Animated.View>
   );
 
-  if (!interactive) return content;
+  if (!interactive) {
+    return (
+      <Animated.View style={[styles.container, animStyle]} pointerEvents="none">
+        <Image source={{ uri: gif.url }} style={styles.image} contentFit="contain" />
+      </Animated.View>
+    );
+  }
   return <GestureDetector gesture={gesture}>{content}</GestureDetector>;
 }
 

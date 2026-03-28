@@ -8,13 +8,18 @@ const REFILL_INTERVAL = 60_000; // 1 minute
 export function useTokens(uid: string | null) {
   const [tokens, setTokens] = useState(100);
 
-  // Listen to token balance in real-time
+  // Listen to token balance in real-time + initializeaza la 100 daca lipseste
   useEffect(() => {
     if (!uid) return;
     const tokensRef = ref(db, `users/${uid}/tokens`);
     const unsub = onValue(tokensRef, (snap) => {
       const val = snap.val();
-      if (typeof val === "number") setTokens(val);
+      if (typeof val === "number") {
+        setTokens(val);
+      } else {
+        // Nu exista record de tokens (join() a esuat sau race condition) — initializeaza
+        runTransaction(tokensRef, (current) => current === null ? 100 : current);
+      }
     });
     return () => unsub();
   }, [uid]);
@@ -37,8 +42,9 @@ export function useTokens(uid: string | null) {
     if (!uid) return false;
     const tokensRef = ref(db, `users/${uid}/tokens`);
     const result = await runTransaction(tokensRef, (current) => {
-      if (current === null || current < amount) return; // abort
-      return current - amount;
+      const balance = current === null ? 100 : current; // initializeaza daca lipseste
+      if (balance < amount) return; // abort — insuficient
+      return balance - amount;
     });
     return result.committed;
   }, [uid]);

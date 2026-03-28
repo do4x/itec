@@ -54,9 +54,9 @@ export default function MapScreen() {
           <View style={styles.tokenBadge}>
             <Text style={styles.tokenText}>{tokens}</Text>
           </View>
-          <View style={[styles.teamBadge, { borderColor: TEAMS[teamId].color }]}>
-            <View style={[styles.badgeDot, { backgroundColor: TEAMS[teamId].color }]} />
-            <Text style={[styles.badgeText, { color: TEAMS[teamId].color }]}>{TEAMS[teamId].name}</Text>
+          <View style={[styles.teamBadge, { borderColor: TEAMS[teamId]?.color }]}>
+            <View style={[styles.badgeDot, { backgroundColor: TEAMS[teamId]?.color }]} />
+            <Text style={[styles.badgeText, { color: TEAMS[teamId]?.color }]}>{TEAMS[teamId]?.name}</Text>
           </View>
         </View>
       </Animated.View>

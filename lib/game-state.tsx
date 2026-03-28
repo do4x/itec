@@ -37,7 +37,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   // Restore session from Firebase on auth ready
   useEffect(() => {
-    if (!uid) return;
+    if (!uid) {
+      setRestored(true); // auth eșuat — nu bloca UI-ul
+      return;
+    }
     const userRef = ref(db, `users/${uid}`);
     onValue(userRef, (snap) => {
       const data = snap.val();

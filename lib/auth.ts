@@ -6,12 +6,19 @@ export function useAuth() {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUid(user.uid);
         setIsReady(true);
       } else {
-        signInAnonymously(auth).catch(console.error);
+        try {
+          const cred = await signInAnonymously(auth);
+          setUid(cred.user.uid);
+          setIsReady(true);
+        } catch (err: any) {
+          console.error("[Auth] Anonymous sign-in failed:", err?.code, err?.message);
+          setIsReady(true);
+        }
       }
     });
     return unsubscribe;

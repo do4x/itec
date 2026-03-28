@@ -180,7 +180,7 @@ export default function CanvasScreen() {
   }, [enemyAnthemUrl]);
 
   // ── Pixel drawing ─────────────────────────────────────────────────────
-  const handlePixelPress = useCallback(async (row: number, col: number) => {
+  const handlePixelPress = useCallback(async (row: number, col: number, silent = false) => {
     if (!posterId || !uid) return;
     const key = `${row}_${col}`;
 
@@ -188,7 +188,7 @@ export default function CanvasScreen() {
       const existing = pixels.get(key);
       if (!existing) return;
       const ok = await spend(10);
-      if (!ok) { Alert.alert("Tokens insuficiente", "Ai nevoie de 10 tokens pt a sterge un pixel."); return; }
+      if (!ok) { if (!silent) Alert.alert("Tokens insuficiente", "Ai nevoie de 10 tokens pt a sterge un pixel."); return; }
       remove(ref(db, `posters/${posterId}/pixels/${key}`));
       setPixels((prev) => { const n = new Map(prev); n.delete(key); return n; });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -199,7 +199,7 @@ export default function CanvasScreen() {
       const existing = pixels.get(key);
       const isOverride = existing && existing.uid !== uid;
       const ok = await spend(10);
-      if (!ok) { Alert.alert("Tokens insuficiente", "Ai nevoie de 10 tokens pt a colora un pixel."); return; }
+      if (!ok) { if (!silent) Alert.alert("Tokens insuficiente", "Ai nevoie de 10 tokens pt a colora un pixel."); return; }
       const pixelData: PixelData = { color: brushColor, teamId, username, uid };
       set(ref(db, `posters/${posterId}/pixels/${key}`), { ...pixelData, t: serverTimestamp() });
       setPixels((prev) => { const n = new Map(prev); n.set(key, pixelData); return n; });
@@ -213,8 +213,7 @@ export default function CanvasScreen() {
   }, [posterId, uid, activeTool, brushColor, teamId, username, spend, pixels]);
 
   const handlePixelDrag = useCallback(async (row: number, col: number) => {
-    // Same logic as press for drag painting
-    handlePixelPress(row, col);
+    handlePixelPress(row, col, true);
   }, [handlePixelPress]);
 
   // ── GIF operations ─────────────────────────────────────────────────────
