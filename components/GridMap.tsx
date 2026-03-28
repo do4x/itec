@@ -87,7 +87,7 @@ export default function GridMap({ territories, onPosterPress }: GridMapProps) {
           const { x, y } = toXY(poster.lat, poster.lng);
           const territory = territories[poster.id];
           const pinColor = territory?.dominantTeam
-            ? TEAMS[territory.dominantTeam].color
+            ? (TEAMS[territory.dominantTeam]?.color ?? Colors.navyLight)
             : Colors.navyLight;
           const isActive = (territory?.totalPixels ?? 0) > 0;
 

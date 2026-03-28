@@ -50,11 +50,11 @@ export default function GifPickerModal({ visible, onSelect, onClose }: Props) {
       const res = await fetch(endpoint);
       const json = await res.json();
       setResults(
-        json.data.map((g: any) => ({
+        (json.data ?? []).map((g: any) => ({
           id: g.id,
-          previewUrl: g.images.fixed_width_small?.url ?? g.images.fixed_width.url,
-          fullUrl: g.images.fixed_width.url,
-        }))
+          previewUrl: g.images?.fixed_width_small?.url ?? g.images?.fixed_width?.url ?? "",
+          fullUrl: g.images?.fixed_width?.url ?? "",
+        })).filter((g: any) => g.fullUrl)
       );
     } catch {
       setResults([]);

@@ -6,15 +6,14 @@ import {
   TouchableOpacity,
   Dimensions,
   Alert,
-  ActivityIndicator,
   ScrollView,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useGame, TEAMS, TeamId } from "@/lib/game-state";
 import {
-  db, ref, set, push, onChildAdded, onChildChanged, onValue, off, remove, update,
-  storage, storageRef, uploadBytes, getDownloadURL, serverTimestamp,
+  db, ref, set, push, onChildAdded, onChildChanged, onValue, remove, update,
+  serverTimestamp,
 } from "@/lib/firebase";
 import { VALID_POSTER_IDS, POSTER_NAMES } from "@/lib/poster-matcher";
 import { useTokens } from "@/lib/tokens";
@@ -22,7 +21,6 @@ import { Colors, Spacing, Radii, Typography, Shadows } from "@/constants/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { useAudioPlayer, setAudioModeAsync } from "expo-audio";
-import * as DocumentPicker from "expo-document-picker";
 import Animated, {
   FadeInDown,
   FadeIn,
@@ -34,6 +32,8 @@ import Animated, {
 } from "react-native-reanimated";
 import GifStickerItem, { CanvasGif } from "@/components/GifStickerItem";
 import GifPickerModal from "@/components/GifPickerModal";
+import AnthemPickerModal from "@/components/AnthemPickerModal";
+import { JamendoTrack } from "@/constants/anthem-tracks";
 import PixelGrid, { PixelData } from "@/components/PixelGrid";
 import GraffitiPicker from "@/components/GraffitiPicker";
 import AiPosterModal from "@/components/AiPosterModal";
@@ -64,7 +64,7 @@ export default function CanvasScreen() {
   const isValidPoster = VALID_POSTER_IDS.includes(posterId as any);
   const posterImage = POSTER_IMAGES[posterId as string] ?? (photoUri ? { uri: photoUri } : null);
   const { uid, username, teamId } = useGame();
-  const teamColor = TEAMS[teamId].color;
+  const teamColor = TEAMS[teamId]?.color ?? Colors.teamCyan;
   const insets = useSafeAreaInsets();
   const { tokens, spend, canAfford } = useTokens(uid);
 
@@ -78,9 +78,9 @@ export default function CanvasScreen() {
   const [showGifPicker, setShowGifPicker] = useState(false);
 
   // Anthem state
-  interface Anthem { url: string; teamId: string }
+  interface Anthem { url: string; teamId: string; name?: string; artist?: string }
   const [anthem, setAnthem] = useState<Anthem | null>(null);
-  const [uploadingAnthem, setUploadingAnthem] = useState(false);
+  const [showAnthemPicker, setShowAnthemPicker] = useState(false);
 
   // Graffiti + AI state
   const [showGraffitiPicker, setShowGraffitiPicker] = useState(false);
@@ -97,17 +97,8 @@ export default function CanvasScreen() {
     if (!posterId || !isValidPoster) return;
     const pixelsRef = ref(db, `posters/${posterId}/pixels`);
 
-    // Initial load
-    onValue(pixelsRef, (snap) => {
-      const data = snap.val() || {};
-      const map = new Map<string, PixelData>();
-      Object.entries(data).forEach(([key, val]: [string, any]) => {
-        map.set(key, val as PixelData);
-      });
-      setPixels(map);
-    }, { onlyOnce: true });
-
-    // Real-time updates
+    // onChildAdded handles both initial load (fires once per existing child)
+    // and real-time new pixels — no duplicate onValue needed.
     const addUnsub = onChildAdded(pixelsRef, (snap) => {
       if (snap.key && snap.val()) {
         setPixels((prev) => {
@@ -141,7 +132,7 @@ export default function CanvasScreen() {
       }
     });
 
-    return () => off(pixelsRef);
+    return () => { addUnsub(); changeUnsub(); };
   }, [posterId, uid]);
 
   // ── Firebase: GIFs ─────────────────────────────────────────────────────
@@ -302,40 +293,20 @@ export default function CanvasScreen() {
   }, [posterId, uid, teamId, username, spend]);
 
   // ── Anthem callbacks ───────────────────────────────────────────────────
-  const handlePickAnthem = useCallback(async () => {
+  const handleAnthemSelect = useCallback(async (track: JamendoTrack) => {
     if (!posterId || !uid) return;
     const ok = await spend(100);
     if (!ok) { Alert.alert("Tokens insuficiente", "Ai nevoie de 100 tokens pt anthem."); return; }
-
-    let result;
-    try {
-      result = await DocumentPicker.getDocumentAsync({ type: "audio/*", copyToCacheDirectory: true });
-    } catch { Alert.alert("Eroare", "Nu s-a putut deschide selectorul."); return; }
-    if (result.canceled || !result.assets?.[0]) return;
-
-    const file = result.assets[0];
-    setUploadingAnthem(true);
-    try {
-      const blob: Blob = await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.onload = () => resolve(xhr.response as Blob);
-        xhr.onerror = () => reject(new Error("XHR failed"));
-        xhr.responseType = "blob";
-        xhr.open("GET", file.uri, true);
-        xhr.send(null);
-      });
-      const fileRef = storageRef(storage, `anthems/${posterId}`);
-      await uploadBytes(fileRef, blob, { contentType: file.mimeType ?? "audio/mpeg" });
-      const downloadUrl = await getDownloadURL(fileRef);
-      update(ref(db, `posters/${posterId}/anthem`), { url: downloadUrl, teamId });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      logActivity({ type: "anthem", username, teamId, posterId });
-    } catch (err: any) {
-      Alert.alert("Eroare upload", err?.message ?? "Unknown error");
-    } finally {
-      setUploadingAnthem(false);
-    }
-  }, [posterId, teamId, uid, spend]);
+    update(ref(db, `posters/${posterId}/anthem`), {
+      url: track.audio,
+      teamId,
+      name: track.name,
+      artist: track.artist_name,
+    });
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    logActivity({ type: "anthem", username, teamId, posterId });
+    setShowAnthemPicker(false);
+  }, [posterId, teamId, uid, username, spend]);
 
   const handleClearAnthem = useCallback(() => {
     if (!posterId) return;
@@ -514,18 +485,20 @@ export default function CanvasScreen() {
           {anthem?.teamId === teamId ? (
             <View style={styles.anthemActiveRow}>
               <Ionicons name="musical-notes" size={15} color={teamColor} />
-              <Text style={[styles.anthemActiveText, { color: teamColor }]}>ANTHEM ACTIV</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.anthemActiveText, { color: teamColor }]}>ANTHEM ACTIV</Text>
+                {anthem.name ? (
+                  <Text style={styles.anthemTrackName} numberOfLines={1}>
+                    {anthem.name}{anthem.artist ? ` — ${anthem.artist}` : ""}
+                  </Text>
+                ) : null}
+              </View>
               <TouchableOpacity onPress={handleClearAnthem} style={styles.anthemClearBtn}>
                 <Ionicons name="close-circle" size={16} color={Colors.error} />
               </TouchableOpacity>
             </View>
-          ) : uploadingAnthem ? (
-            <View style={styles.anthemActiveRow}>
-              <ActivityIndicator size="small" color={Colors.itecBright} />
-              <Text style={styles.setAnthemText}>SE INCARCA...</Text>
-            </View>
           ) : (
-            <TouchableOpacity style={styles.setAnthemBtn} onPress={handlePickAnthem}>
+            <TouchableOpacity style={styles.setAnthemBtn} onPress={() => setShowAnthemPicker(true)}>
               <Ionicons name="musical-notes-outline" size={15} color={Colors.softGray} />
               <Text style={styles.setAnthemText}>SET ANTHEM (100)</Text>
             </TouchableOpacity>
@@ -536,6 +509,7 @@ export default function CanvasScreen() {
       <GifPickerModal visible={showGifPicker} onSelect={handleAddGif} onClose={() => setShowGifPicker(false)} />
       <GraffitiPicker visible={showGraffitiPicker} teamColor={brushColor} onSelect={handleGraffitiSelect} onClose={() => setShowGraffitiPicker(false)} />
       <AiPosterModal visible={showAiPoster} onConfirm={handleAiPosterConfirm} onClose={() => setShowAiPoster(false)} />
+      <AnthemPickerModal visible={showAnthemPicker} onSelect={handleAnthemSelect} onClose={() => setShowAnthemPicker(false)} />
     </View>
   );
 }
@@ -579,4 +553,5 @@ const styles = StyleSheet.create({
   anthemActiveRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm },
   anthemActiveText: { fontWeight: "800", fontSize: 11, letterSpacing: 2 },
   anthemClearBtn: { marginLeft: Spacing.sm },
+  anthemTrackName: { color: Colors.muted, fontSize: 10, letterSpacing: 1, marginTop: 1 },
 });
