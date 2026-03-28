@@ -167,7 +167,7 @@ export default function AnthemPickerModal({ visible, onSelect, onClose }: Props)
           <Ionicons name="search-outline" size={16} color={Colors.muted} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Caută artis, titlu, gen..."
+            placeholder="Caută..."
             placeholderTextColor={Colors.muted}
             value={query}
             onChangeText={setQuery}

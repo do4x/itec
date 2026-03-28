@@ -9,6 +9,7 @@ import { POSTER_LOCATIONS } from "@/constants/poster-locations";
 import { Colors, Spacing, Radii, Typography, Shadows } from "@/constants/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import GridMap from "@/components/GridMap";
+import TokenIcon from "@/components/TokenIcon";
 import PosterCard from "@/components/PosterCard";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
@@ -52,6 +53,7 @@ export default function MapScreen() {
         <Text style={styles.title}>OVERRIDE</Text>
         <View style={styles.headerRight}>
           <View style={styles.tokenBadge}>
+            <TokenIcon size={13} color={Colors.teamYellow} innerColor={Colors.navyDeep} />
             <Text style={styles.tokenText}>{tokens}</Text>
           </View>
           <View style={[styles.teamBadge, { borderColor: TEAMS[teamId]?.color }]}>
@@ -111,7 +113,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: Spacing.lg },
   title: { ...Typography.h2, letterSpacing: 4 },
   headerRight: { flexDirection: "row", alignItems: "center", gap: Spacing.sm },
-  tokenBadge: { backgroundColor: Colors.teamYellow + "22", paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: Radii.full, borderWidth: 1, borderColor: Colors.teamYellow + "44" },
+  tokenBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: Colors.teamYellow + "22", paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: Radii.full, borderWidth: 1, borderColor: Colors.teamYellow + "44" },
   tokenText: { fontSize: 12, fontWeight: "800", color: Colors.teamYellow },
   teamBadge: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, borderWidth: 1, borderRadius: Radii.full, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, backgroundColor: Colors.navyMid },
   badgeDot: { width: 8, height: 8, borderRadius: 4 },

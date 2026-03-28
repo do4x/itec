@@ -31,6 +31,7 @@ import Animated, {
   withSequence,
 } from "react-native-reanimated";
 import GifStickerItem, { CanvasGif } from "@/components/GifStickerItem";
+import TokenIcon from "@/components/TokenIcon";
 import GifPickerModal from "@/components/GifPickerModal";
 import AnthemPickerModal from "@/components/AnthemPickerModal";
 import { JamendoTrack } from "@/constants/anthem-tracks";
@@ -393,7 +394,7 @@ export default function CanvasScreen() {
         </Text>
         <View style={styles.headerRight}>
           <View style={styles.tokenBadge}>
-            <Ionicons name="diamond-outline" size={12} color={Colors.teamYellow} />
+            <TokenIcon size={14} color={Colors.teamYellow} innerColor={Colors.navyDeep} />
             <Text style={styles.tokenText}>{tokens}</Text>
           </View>
           <Animated.View style={[styles.pulseDot, pulseStyle]} />
