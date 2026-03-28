@@ -86,6 +86,10 @@ export default function CanvasScreen() {
   const [showGraffitiPicker, setShowGraffitiPicker] = useState(false);
   const [showAiPoster, setShowAiPoster] = useState(false);
 
+  // Graffiti placement state
+  interface PendingGraffiti { pattern: GraffitiPattern; startRow: number; startCol: number; }
+  const [pendingGraffiti, setPendingGraffiti] = useState<PendingGraffiti | null>(null);
+
   // Glitch state
   const glitchX = useSharedValue(0);
   const glitchStyle = useAnimatedStyle(() => ({
@@ -242,15 +246,44 @@ export default function CanvasScreen() {
 
   const handleSelectGif = useCallback((id: string | null) => setSelectedGifId(id), []);
 
-  // ── Graffiti stamp ─────────────────────────────────────────────────────
-  const handleGraffitiSelect = useCallback(async (pattern: GraffitiPattern) => {
-    if (!posterId || !uid) return;
-    const ok = await spend(50);
-    if (!ok) { Alert.alert("Tokens insuficiente", "Ai nevoie de 50 tokens pt graffiti."); return; }
-
-    // Stamp centered on grid
+  // ── Graffiti placement ────────────────────────────────────────────────
+  // Step 1: picker selects pattern → show preview centered on grid
+  const handleGraffitiPreview = useCallback((pattern: GraffitiPattern) => {
     const startRow = Math.max(0, Math.floor((GRID_ROWS - pattern.height) / 2));
     const startCol = Math.max(0, Math.floor((GRID_COLS - pattern.width) / 2));
+    setPendingGraffiti({ pattern, startRow, startCol });
+  }, []);
+
+  // Move preview by one cell (clamped to grid bounds)
+  const moveGraffiti = useCallback((dRow: number, dCol: number) => {
+    setPendingGraffiti((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        startRow: Math.max(0, Math.min(GRID_ROWS - prev.pattern.height, prev.startRow + dRow)),
+        startCol: Math.max(0, Math.min(GRID_COLS - prev.pattern.width, prev.startCol + dCol)),
+      };
+    });
+  }, []);
+
+  // Tap on canvas sets top-left corner of pattern (clamped)
+  const handleGraffitiPositionPress = useCallback((row: number, col: number) => {
+    setPendingGraffiti((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        startRow: Math.max(0, Math.min(GRID_ROWS - prev.pattern.height, row)),
+        startCol: Math.max(0, Math.min(GRID_COLS - prev.pattern.width, col)),
+      };
+    });
+  }, []);
+
+  // Step 2: confirm → spend tokens + stamp
+  const handleGraffitiConfirm = useCallback(async () => {
+    if (!pendingGraffiti || !posterId || !uid) return;
+    const { pattern, startRow, startCol } = pendingGraffiti;
+    const ok = await spend(50);
+    if (!ok) { Alert.alert("Tokens insuficiente", "Ai nevoie de 50 tokens pt graffiti."); return; }
     const updates: Record<string, any> = {};
     pattern.pixels.forEach((row, r) => {
       row.forEach((filled, c) => {
@@ -258,8 +291,7 @@ export default function CanvasScreen() {
           const gr = startRow + r;
           const gc = startCol + c;
           if (gr < GRID_ROWS && gc < GRID_COLS) {
-            const key = `${gr}_${gc}`;
-            updates[key] = { color: brushColor, teamId, username, uid, t: serverTimestamp() };
+            updates[`${gr}_${gc}`] = { color: brushColor, teamId, username, uid, t: serverTimestamp() };
           }
         }
       });
@@ -272,8 +304,14 @@ export default function CanvasScreen() {
     });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     logActivity({ type: "graffiti", username, teamId, posterId });
+    setPendingGraffiti(null);
     setActiveTool("pixel");
-  }, [posterId, uid, brushColor, teamId, username, spend]);
+  }, [pendingGraffiti, posterId, uid, brushColor, teamId, username, spend]);
+
+  const handleGraffitiCancel = useCallback(() => {
+    setPendingGraffiti(null);
+    setActiveTool("pixel");
+  }, []);
 
   // ── AI Poster ──────────────────────────────────────────────────────────
   const handleAiPosterConfirm = useCallback(async (url: string) => {
@@ -383,10 +421,41 @@ export default function CanvasScreen() {
           cellSize={CELL_SIZE}
           gridCols={GRID_COLS}
           gridRows={GRID_ROWS}
-          onPixelPress={activeTool === "pixel" || activeTool === "eraser" ? handlePixelPress : () => {}}
-          onPixelDrag={activeTool === "pixel" || activeTool === "eraser" ? handlePixelDrag : undefined}
+          onPixelPress={
+            pendingGraffiti ? handleGraffitiPositionPress :
+            (activeTool === "pixel" || activeTool === "eraser" ? handlePixelPress : () => {})
+          }
+          onPixelDrag={
+            pendingGraffiti ? handleGraffitiPositionPress :
+            (activeTool === "pixel" || activeTool === "eraser" ? handlePixelDrag : undefined)
+          }
           backgroundImage={posterImage}
         />
+
+        {/* Layer 1.5: Graffiti placement preview */}
+        {pendingGraffiti && (
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            {pendingGraffiti.pattern.pixels.flatMap((row, r) =>
+              row.map((filled, c) => {
+                if (!filled) return null;
+                return (
+                  <View
+                    key={`preview_${r}_${c}`}
+                    style={{
+                      position: "absolute",
+                      left: (pendingGraffiti.startCol + c) * CELL_SIZE,
+                      top: (pendingGraffiti.startRow + r) * CELL_SIZE,
+                      width: CELL_SIZE,
+                      height: CELL_SIZE,
+                      backgroundColor: brushColor,
+                      opacity: 0.65,
+                    }}
+                  />
+                );
+              })
+            )}
+          </View>
+        )}
 
         {/* Layer 2: GIF stickers */}
         {gifs.map((gif) => (
@@ -433,7 +502,12 @@ export default function CanvasScreen() {
             <TouchableOpacity
               key={tool}
               style={[styles.toolButton, activeTool === tool && styles.toolButtonActive]}
-              onPress={() => { setActiveTool(tool); setSelectedGifId(null); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+              onPress={() => {
+                setActiveTool(tool);
+                setSelectedGifId(null);
+                if (tool !== "graffiti") setPendingGraffiti(null);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
             >
               <Ionicons name={icon} size={22} color={activeTool === tool ? Colors.itecBright : Colors.softGray} />
             </TouchableOpacity>
@@ -452,12 +526,48 @@ export default function CanvasScreen() {
           </View>
         )}
 
-        {activeTool === "graffiti" && (
+        {activeTool === "graffiti" && !pendingGraffiti && (
           <View style={styles.stickerActions}>
             <TouchableOpacity style={styles.addGifBtn} onPress={() => setShowGraffitiPicker(true)}>
               <Ionicons name="color-fill" size={20} color={Colors.itecBright} />
               <Text style={styles.addGifText}>PICK STAMP (50)</Text>
             </TouchableOpacity>
+          </View>
+        )}
+
+        {activeTool === "graffiti" && pendingGraffiti && (
+          <View style={styles.graffitiPlacement}>
+            <Text style={styles.placementHint}>TAP CANVAS OR USE ARROWS TO POSITION</Text>
+            <View style={styles.arrowPad}>
+              <View style={styles.arrowRow}>
+                <View style={styles.arrowSpacer} />
+                <TouchableOpacity style={styles.arrowBtn} onPress={() => moveGraffiti(-1, 0)}>
+                  <Ionicons name="arrow-up" size={18} color={Colors.white} />
+                </TouchableOpacity>
+                <View style={styles.arrowSpacer} />
+              </View>
+              <View style={styles.arrowRow}>
+                <TouchableOpacity style={styles.arrowBtn} onPress={() => moveGraffiti(0, -1)}>
+                  <Ionicons name="arrow-back" size={18} color={Colors.white} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.arrowBtn} onPress={() => moveGraffiti(1, 0)}>
+                  <Ionicons name="arrow-down" size={18} color={Colors.white} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.arrowBtn} onPress={() => moveGraffiti(0, 1)}>
+                  <Ionicons name="arrow-forward" size={18} color={Colors.white} />
+                </TouchableOpacity>
+              </View>
+            </View>
+            <View style={styles.graffitiConfirmRow}>
+              <TouchableOpacity style={styles.stampConfirmBtn} onPress={handleGraffitiConfirm}>
+                <Ionicons name="checkmark" size={16} color={Colors.navyDeep} />
+                <Text style={styles.stampConfirmText}>STAMP (50)</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.stampCancelBtn} onPress={handleGraffitiCancel}>
+                <Ionicons name="close" size={16} color={Colors.error} />
+                <Text style={styles.stampCancelText}>CANCEL</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -507,7 +617,7 @@ export default function CanvasScreen() {
       </ScrollView>
 
       <GifPickerModal visible={showGifPicker} onSelect={handleAddGif} onClose={() => setShowGifPicker(false)} />
-      <GraffitiPicker visible={showGraffitiPicker} teamColor={brushColor} onSelect={handleGraffitiSelect} onClose={() => setShowGraffitiPicker(false)} />
+      <GraffitiPicker visible={showGraffitiPicker} teamColor={brushColor} onSelect={handleGraffitiPreview} onClose={() => setShowGraffitiPicker(false)} />
       <AiPosterModal visible={showAiPoster} onConfirm={handleAiPosterConfirm} onClose={() => setShowAiPoster(false)} />
       <AnthemPickerModal visible={showAnthemPicker} onSelect={handleAnthemSelect} onClose={() => setShowAnthemPicker(false)} />
     </View>
@@ -554,4 +664,16 @@ const styles = StyleSheet.create({
   anthemActiveText: { fontWeight: "800", fontSize: 11, letterSpacing: 2 },
   anthemClearBtn: { marginLeft: Spacing.sm },
   anthemTrackName: { color: Colors.muted, fontSize: 10, letterSpacing: 1, marginTop: 1 },
+  // Graffiti placement
+  graffitiPlacement: { gap: Spacing.sm },
+  placementHint: { color: Colors.muted, fontSize: 9, fontWeight: "700", letterSpacing: 1, textAlign: "center" },
+  arrowPad: { alignItems: "center", gap: 4 },
+  arrowRow: { flexDirection: "row", gap: 4 },
+  arrowSpacer: { width: 38 },
+  arrowBtn: { width: 38, height: 38, borderRadius: Radii.md, backgroundColor: Colors.navyDeep, borderWidth: 1, borderColor: Colors.navyLight, justifyContent: "center", alignItems: "center" },
+  graffitiConfirmRow: { flexDirection: "row", justifyContent: "center", gap: Spacing.md },
+  stampConfirmBtn: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, backgroundColor: Colors.success, borderRadius: Radii.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm },
+  stampConfirmText: { color: Colors.navyDeep, fontWeight: "800", fontSize: 12, letterSpacing: 2 },
+  stampCancelBtn: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, backgroundColor: Colors.error + "18", borderWidth: 1, borderColor: Colors.error + "66", borderRadius: Radii.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm },
+  stampCancelText: { color: Colors.error, fontWeight: "800", fontSize: 12, letterSpacing: 2 },
 });
