@@ -17,11 +17,6 @@ export function useTokens(uid: string | null) {
       const val = snap.val();
       if (typeof val === "number") {
         setTokens(val);
-        if (val < 200) {
-          runTransaction(tokensRef, (current) =>
-            current !== null && current < 200 ? 200 : current
-          );
-        }
       } else {
         runTransaction(tokensRef, (current) => (current === null ? 200 : current));
       }
