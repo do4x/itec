@@ -16,7 +16,7 @@ interface ProfileModalProps {
 
 export default function ProfileModal({ visible, onClose }: ProfileModalProps) {
   const { uid, username, teamId, avatar, setAvatar, isGuest, isAuthenticated, logout } = useGame();
-  const { tokens } = useTokens(uid);
+  const { tokens, nextRefillIn, TOKEN_CAP } = useTokens(uid);
   const team = TEAMS[teamId];
   const currentAvatar = getAvatar(avatar);
   const [changingAvatar, setChangingAvatar] = useState(false);
@@ -66,7 +66,12 @@ export default function ProfileModal({ visible, onClose }: ProfileModalProps) {
 
             {/* Token balance */}
             <View style={styles.statCard}>
-              <Text style={styles.statLabel}>TOKENS</Text>
+              <View>
+                <Text style={styles.statLabel}>TOKENS</Text>
+                {!isGuest && tokens < TOKEN_CAP && (
+                  <Text style={styles.refillTimer}>+20 în {nextRefillIn}s</Text>
+                )}
+              </View>
               <Text style={styles.statValue}>{isGuest ? "—" : tokens}</Text>
             </View>
 
@@ -160,6 +165,7 @@ const styles = StyleSheet.create({
   },
   statLabel: { color: Colors.softGray, fontSize: 11, fontWeight: "700", letterSpacing: 3 },
   statValue: { color: Colors.teamYellow, fontSize: 20, fontWeight: "800" },
+  refillTimer: { color: Colors.muted, fontSize: 10, fontWeight: "600", marginTop: 3 },
 
   sectionHeader: {
     flexDirection: "row", justifyContent: "space-between",
