@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Modal, TextInput, ActivityIndicator,
+  Modal, TextInput, ActivityIndicator, Image,
 } from "react-native";
-import { Image } from "expo-image";
 import { generateAiPoster } from "@/lib/ai-gen";
 import { Colors, Spacing, Radii, Typography } from "@/constants/theme";
 
@@ -116,7 +115,7 @@ export default function AiPosterModal({ visible, onConfirm, onClose }: AiPosterM
               <Image
                 source={{ uri: imageUri }}
                 style={[styles.preview, !ready && { width: 0, height: 0 }]}
-                contentFit="contain"
+                resizeMode="contain"
                 onLoad={() => setReady(true)}
                 onError={() => setError("Afișarea a eșuat. Încearcă din nou.")}
               />
