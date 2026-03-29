@@ -13,7 +13,7 @@ import { useTokens } from "@/lib/tokens";
 import { usePosterInstances } from "@/lib/use-poster-instances";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -83,10 +83,10 @@ export default function MapScreen() {
           </View>
           {/* Buton profil */}
           <TouchableOpacity
-            style={[styles.avatarBtn, { borderColor: currentAvatar.color }]}
+            style={styles.avatarBtn}
             onPress={() => setShowProfile(true)}
           >
-            <Text style={styles.avatarBtnEmoji}>{currentAvatar.emoji}</Text>
+            <Image source={currentAvatar.image} style={styles.avatarBtnImage} />
           </TouchableOpacity>
         </View>
       </Animated.View>
@@ -177,8 +177,8 @@ const styles = StyleSheet.create({
   tokenBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: Colors.teamYellow + "22", paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: Radii.full, borderWidth: 1, borderColor: Colors.teamYellow + "44" },
   tokenText: { fontSize: 12, fontWeight: "800", color: Colors.teamYellow },
   teamBadge: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, borderWidth: 1, borderRadius: Radii.full, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, backgroundColor: Colors.navyMid },
-  avatarBtn: { width: 32, height: 32, borderRadius: 16, borderWidth: 1.5, alignItems: "center", justifyContent: "center", backgroundColor: Colors.navyMid },
-  avatarBtnEmoji: { fontSize: 16 },
+  avatarBtn: { width: 32, height: 32, borderRadius: 16, borderWidth: 1.5, borderColor: Colors.teamCyan, alignItems: "center", justifyContent: "center", backgroundColor: Colors.navyMid, overflow: "hidden" },
+  avatarBtnImage: { width: 28, height: 28, borderRadius: 14 },
   badgeDot: { width: 8, height: 8, borderRadius: 4 },
   badgeText: { fontSize: 10, fontWeight: "800", letterSpacing: 2 },
   scoreSection: { marginTop: Spacing.lg, backgroundColor: Colors.navyMid, borderRadius: Radii.lg, borderWidth: 1, borderColor: Colors.navyLight, padding: Spacing.lg, ...Shadows.soft },

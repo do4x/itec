@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Colors } from "@/constants/theme";
+import { AVATARS } from "@/constants/avatars";
 import { useAuth } from "./auth";
 import { db, ref, set, get, onValue, runTransaction, serverTimestamp } from "./firebase";
 
@@ -36,7 +37,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const { uid, isReady: authReady, isGuest, isAuthenticated, logout: authLogout } = useAuth();
   const [username, setUsername] = useState("");
   const [teamId, setTeamId] = useState<TeamId>("red");
-  const [avatar, setAvatar] = useState("ghost");
+  const [avatar, setAvatar] = useState(AVATARS[0].id);
   const [isJoined, setIsJoined] = useState(false);
   const [isJury, setIsJury] = useState(false);
   const [restored, setRestored] = useState(false);
@@ -47,7 +48,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setIsJoined(false);
       setUsername("");
       setTeamId("red");
-      setAvatar("ghost");
+      setAvatar(AVATARS[0].id);
       setIsJury(false);
       setRestored(true);
       return;
@@ -65,7 +66,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       if (data?.username) {
         setUsername(data.username);
         setTeamId(data.teamId || "red");
-        setAvatar(data.avatar || "ghost");
+        setAvatar(data.avatar || AVATARS[0].id);
         setIsJoined(true);
         setIsJury(data.isJury || false);
       }
@@ -91,11 +92,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
     if (!result.committed) return false; // nickname taken
 
+    const finalAvatar = avatar || AVATARS[Math.floor(Math.random() * AVATARS.length)].id;
+    setAvatar(finalAvatar);
     setIsJoined(true);
     set(ref(db, `users/${uid}`), {
       username,
       teamId,
-      avatar,
+      avatar: finalAvatar,
       tokens: 200,
       lastTokenGrant: serverTimestamp(),
       joinedAt: serverTimestamp(),

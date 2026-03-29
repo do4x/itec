@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, ActivityIndicator,
+  TouchableOpacity, ActivityIndicator, Image,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -162,8 +162,8 @@ export default function PlayerProfileScreen() {
         >
           {/* Avatar + username + team */}
           <Animated.View entering={FadeInUp.duration(350)} style={styles.profileCard}>
-            <View style={[styles.avatarCircle, { borderColor: currentAvatar.color }]}>
-              <Text style={styles.avatarEmoji}>{currentAvatar.emoji}</Text>
+            <View style={styles.avatarCircle}>
+              <Image source={currentAvatar.image} style={styles.avatarImage} />
             </View>
             <View style={styles.profileInfo}>
               <Text style={styles.username}>@{profile.username}</Text>
@@ -275,11 +275,13 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: 32,
     borderWidth: 2,
+    borderColor: Colors.teamCyan,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: Colors.navyDeep,
+    overflow: "hidden",
   },
-  avatarEmoji: { fontSize: 30 },
+  avatarImage: { width: 56, height: 56, borderRadius: 28 },
   profileInfo: { gap: Spacing.xs },
   username: {
     color: Colors.white,

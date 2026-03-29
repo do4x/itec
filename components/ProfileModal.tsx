@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Modal, Alert, ScrollView,
+  Modal, Alert, ScrollView, Image,
 } from "react-native";
 import { router } from "expo-router";
 import { useGame, TEAMS } from "@/lib/game-state";
@@ -51,8 +51,8 @@ export default function ProfileModal({ visible, onClose }: ProfileModalProps) {
 
             {/* Avatar + info */}
             <View style={styles.profileRow}>
-              <View style={[styles.avatarCircle, { borderColor: currentAvatar.color }]}>
-                <Text style={styles.avatarEmoji}>{currentAvatar.emoji}</Text>
+              <View style={styles.avatarCircle}>
+                <Image source={currentAvatar.image} style={styles.avatarImage} />
               </View>
               <View style={styles.profileInfo}>
                 <Text style={styles.username}>@{username || "guest"}</Text>
@@ -93,12 +93,12 @@ export default function ProfileModal({ visible, onClose }: ProfileModalProps) {
                       key={av.id}
                       style={[
                         styles.avatarOption,
-                        isSelected && { borderColor: av.color, backgroundColor: av.color + "20" },
+                        isSelected && { borderColor: Colors.teamCyan, backgroundColor: Colors.teamCyan + "20" },
                       ]}
                       onPress={() => setAvatar(av.id)}
                     >
-                      <Text style={styles.avatarOptionEmoji}>{av.emoji}</Text>
-                      <Text style={[styles.avatarOptionLabel, isSelected && { color: av.color }]}>
+                      <Image source={av.image} style={styles.avatarOptionImage} />
+                      <Text style={[styles.avatarOptionLabel, isSelected && { color: Colors.teamCyan }]}>
                         {av.label}
                       </Text>
                     </TouchableOpacity>
@@ -141,10 +141,11 @@ const styles = StyleSheet.create({
   profileRow: { flexDirection: "row", alignItems: "center", gap: Spacing.lg, marginBottom: Spacing.xl },
   avatarCircle: {
     width: 64, height: 64, borderRadius: 32,
-    borderWidth: 2, alignItems: "center", justifyContent: "center",
-    backgroundColor: Colors.navyDeep,
+    borderWidth: 2, borderColor: Colors.teamCyan,
+    alignItems: "center", justifyContent: "center",
+    backgroundColor: Colors.navyDeep, overflow: "hidden",
   },
-  avatarEmoji: { fontSize: 30 },
+  avatarImage: { width: 56, height: 56, borderRadius: 28 },
   profileInfo: { gap: Spacing.xs },
   username: { color: Colors.white, fontSize: 18, fontWeight: "800", letterSpacing: 1 },
   teamBadge: {
@@ -183,7 +184,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: Colors.navyLight,
     borderRadius: Radii.md, backgroundColor: Colors.navyDeep + "80",
   },
-  avatarOptionEmoji: { fontSize: 24 },
+  avatarOptionImage: { width: 36, height: 36, borderRadius: 18 },
   avatarOptionLabel: { color: Colors.muted, fontSize: 8, fontWeight: "700", letterSpacing: 1 },
 
   logoutBtn: {
