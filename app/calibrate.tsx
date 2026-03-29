@@ -6,6 +6,7 @@ import {
 } from "@/constants/poster-designs";
 import { Colors, Radii, Shadows, Spacing } from "@/constants/theme";
 import { db, onValue, ref, remove, set } from "@/lib/firebase";
+import { activateDevCode, isDevMode } from "@/lib/tokens";
 import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
 import { router } from "expo-router";
@@ -32,6 +33,8 @@ export default function CalibrateScreen() {
   const [instances, setInstances] = useState<Record<string, PosterInstance>>({});
   const [activeSlot, setActiveSlot] = useState<string | null>(null);
   const [sampleCount, setSampleCount] = useState(0);
+  const [devCodeInput, setDevCodeInput] = useState("");
+  const [devActive, setDevActive] = useState(isDevMode());
 
   // For the "add new" flow
   const [showAddModal, setShowAddModal] = useState(false);
@@ -256,6 +259,44 @@ export default function CalibrateScreen() {
             </Text>
           </View>
         )}
+
+        {/* Dev Code Section */}
+        <View style={styles.devCard}>
+          <Text style={styles.devTitle}>DEV MODE</Text>
+          {devActive ? (
+            <View style={styles.devActiveRow}>
+              <Text style={styles.devActiveDot}>●</Text>
+              <Text style={styles.devActiveText}>INFINITE TOKENS ACTIVE</Text>
+            </View>
+          ) : (
+            <View style={styles.devInputRow}>
+              <TextInput
+                style={styles.devInput}
+                value={devCodeInput}
+                onChangeText={setDevCodeInput}
+                placeholder="Enter dev code"
+                placeholderTextColor={Colors.muted}
+                autoCapitalize="characters"
+              />
+              <TouchableOpacity
+                style={styles.devBtn}
+                onPress={() => {
+                  const ok = activateDevCode(devCodeInput);
+                  if (ok) {
+                    setDevActive(true);
+                    setDevCodeInput("");
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  } else {
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                    Alert.alert("Invalid code");
+                  }
+                }}
+              >
+                <Text style={styles.devBtnText}>UNLOCK</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
       </ScrollView>
 
       {/* FAB — Add new instance */}
@@ -596,4 +637,40 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalConfirmText: { color: Colors.navyDeep, fontSize: 13, fontWeight: "900", letterSpacing: 1 },
+
+  // Dev code
+  devCard: {
+    marginTop: Spacing.xl,
+    backgroundColor: Colors.navyMid,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Colors.navyLight,
+    padding: Spacing.lg,
+  },
+  devTitle: { fontSize: 9, fontWeight: "800", letterSpacing: 3, color: Colors.muted, marginBottom: Spacing.md },
+  devInputRow: { flexDirection: "row", gap: Spacing.sm },
+  devInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: Colors.navyLight,
+    borderRadius: Radii.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    color: Colors.white,
+    fontSize: 13,
+    fontWeight: "700",
+    backgroundColor: Colors.navyDeep + "80",
+    letterSpacing: 2,
+  },
+  devBtn: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: 10,
+    borderRadius: Radii.md,
+    backgroundColor: Colors.navyLight,
+    justifyContent: "center",
+  },
+  devBtnText: { color: Colors.softGray, fontSize: 10, fontWeight: "800", letterSpacing: 2 },
+  devActiveRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm },
+  devActiveDot: { color: Colors.teamGreen, fontSize: 12 },
+  devActiveText: { color: Colors.teamGreen, fontSize: 11, fontWeight: "800", letterSpacing: 2 },
 });

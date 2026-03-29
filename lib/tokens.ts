@@ -5,6 +5,22 @@ const TOKEN_CAP = 2000;
 const REFILL_RATE = 20; // per minute
 const REFILL_INTERVAL = 60_000; // 1 minute
 
+// ── Dev mode (infinite spending) ──────────────────────────────────────────────
+const DEV_CODES = new Set(["ITEC2026", "NOSPEND", "OVERRIDE", "HACKATHON"]);
+let _devModeActive = false;
+
+export function activateDevCode(code: string): boolean {
+  if (DEV_CODES.has(code.trim().toUpperCase())) {
+    _devModeActive = true;
+    return true;
+  }
+  return false;
+}
+
+export function isDevMode(): boolean {
+  return _devModeActive;
+}
+
 export function useTokens(uid: string | null) {
   const [tokens, setTokens] = useState(200);
 
@@ -43,6 +59,7 @@ export function useTokens(uid: string | null) {
   }, [uid]);
 
   const spend = useCallback(async (amount: number): Promise<boolean> => {
+    if (_devModeActive) return true; // dev mode: skip deduction
     if (!uid || auth.currentUser?.isAnonymous) return false;
     const tokensRef = ref(db, `users/${uid}/tokens`);
     const result = await runTransaction(tokensRef, (current) => {
@@ -53,7 +70,7 @@ export function useTokens(uid: string | null) {
     return result.committed;
   }, [uid]);
 
-  const canAfford = useCallback((amount: number) => tokens >= amount, [tokens]);
+  const canAfford = useCallback((amount: number) => _devModeActive || tokens >= amount, [tokens]);
 
   const grant = useCallback(async (amount: number) => {
     if (!uid) return;

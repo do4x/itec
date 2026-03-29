@@ -30,6 +30,7 @@ interface Props {
   gif: CanvasGif;
   isSelected: boolean;
   interactive: boolean;
+  currentUid: string | null;
   onSelect: (id: string | null) => void;
   onUpdate: (id: string, x: number, y: number, scale: number, rotation: number) => void;
   onDelete: (id: string) => void;
@@ -41,10 +42,13 @@ export default function GifStickerItem({
   gif,
   isSelected,
   interactive,
+  currentUid,
   onSelect,
   onUpdate,
   onDelete,
 }: Props) {
+  // Only the owner can move/resize/rotate their sticker
+  const isOwner = gif.uid ? gif.uid === currentUid : true;
   // Coordonate centrate: translateX/Y = centrul GIF-ului
   const translateX  = useSharedValue(gif.x);
   const translateY  = useSharedValue(gif.y);
@@ -85,6 +89,7 @@ export default function GifStickerItem({
 
   // ── Gesturi ────────────────────────────────────────────────────────────
   const panGesture = Gesture.Pan()
+    .enabled(isOwner)
     .onStart(() => {
       savedX.value = translateX.value;
       savedY.value = translateY.value;
@@ -100,6 +105,7 @@ export default function GifStickerItem({
     });
 
   const pinchGesture = Gesture.Pinch()
+    .enabled(isOwner)
     .onStart(() => { savedScale.value = scale.value; })
     .onUpdate((e) => {
       scale.value = Math.max(0.3, Math.min(1.6, savedScale.value * e.scale));
@@ -109,6 +115,7 @@ export default function GifStickerItem({
     });
 
   const rotationGesture = Gesture.Rotation()
+    .enabled(isOwner)
     .onStart(() => { savedRotation.value = rotation.value; })
     .onUpdate((e) => {
       rotation.value = savedRotation.value + e.rotation;
