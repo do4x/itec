@@ -137,8 +137,4 @@ Built in ~24 hours by two people who had never built a mobile app before.
 - **Denis** — Map, UI/UX, prompt engineering, scanning system
 - **Andrei** — Pixel grid, game logic, Firebase backend, canvas tools
 
-Powered by Claude Code (VS Code) + Cursor.
-
----
-
 *iTEC 2026 · Facultatea de Automatică și Calculatoare · Timișoara*
