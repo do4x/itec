@@ -1,10 +1,15 @@
-// Generare imagini AI via Google Gemini 2.0 Flash
+// Generare imagini AI via Google Gemini 2.5 Flash Image
 // Returnează un data URI (base64) care se afișează direct în expo-image
 
-const GEMINI_ENDPOINT =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=AIzaSyDdalOcz4g-VzyaeI7CANlnP5jVFahm8nU";
+const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || "AIzaSyCdghDf2v-Wvocz2r132C64Cf__V-YxUYU";
 
 export async function generateAiPoster(prompt: string): Promise<string> {
+  if (!GEMINI_API_KEY) {
+    throw new Error("Cheia API Gemini lipsește. Adaugă EXPO_PUBLIC_GEMINI_API_KEY în .env și restartează Expo.");
+  }
+
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${GEMINI_API_KEY}`;
+
   const body = {
     contents: [
       {
@@ -18,15 +23,21 @@ export async function generateAiPoster(prompt: string): Promise<string> {
     },
   };
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 60_000);
+
   let response: Response;
   try {
-    response = await fetch(GEMINI_ENDPOINT, {
+    response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      signal: controller.signal,
     });
   } catch {
     throw new Error("Eroare de rețea. Verifică conexiunea la internet.");
+  } finally {
+    clearTimeout(timeout);
   }
 
   if (response.status === 429) {
