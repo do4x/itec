@@ -502,7 +502,7 @@ export default function CanvasScreen() {
       {/* Playground banner for non-anchor posters */}
       {!isAnchorPoster && (
         <View style={styles.playgroundBanner}>
-          <Text style={styles.playgroundText}>⚠ PLAYGROUND — not saved</Text>
+          <Text style={styles.playgroundText}>PLAYGROUND — not saved</Text>
         </View>
       )}
       {/* Header */}

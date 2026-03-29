@@ -40,7 +40,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 
 if (!process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID) {
-  console.warn("⚠️  Firebase neconfigurat — adaugă fișierul .env cu valorile EXPO_PUBLIC_FIREBASE_*");
+  console.warn("Firebase neconfigurat — adaugă fișierul .env cu valorile EXPO_PUBLIC_FIREBASE_*");
 }
 
 const firebaseConfig = {
