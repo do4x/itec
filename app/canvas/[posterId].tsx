@@ -516,6 +516,7 @@ export default function CanvasScreen() {
             key={gif.id} gif={gif}
             isSelected={selectedGifId === gif.id}
             interactive={isSticker}
+            currentUid={uid}
             onSelect={handleSelectGif}
             onUpdate={handleUpdateGif}
             onDelete={handleDeleteGif}
