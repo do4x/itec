@@ -24,7 +24,8 @@ interface PosterStat {
 }
 
 export default function PlayerProfileScreen() {
-  const { username } = useLocalSearchParams<{ username: string }>();
+  const { username, revenge } = useLocalSearchParams<{ username: string; revenge?: string }>();
+  const isRevenge = revenge === "true";
   const insets = useSafeAreaInsets();
 
   const [loadState, setLoadState] = useState<LoadState>("loading");
@@ -125,6 +126,17 @@ export default function PlayerProfileScreen() {
         <View style={styles.headerSpacer} />
       </Animated.View>
 
+      {/* Revenge banner */}
+      {isRevenge && (
+        <Animated.View entering={FadeInDown.duration(400)} style={styles.revengeBanner}>
+          <Text style={styles.revengeEmoji}>⚔️</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.revengeTitle}>REVENGE MODE</Text>
+            <Text style={styles.revengeSub}>Tap a poster to attack @{username}</Text>
+          </View>
+        </Animated.View>
+      )}
+
       {/* Loading */}
       {loadState === "loading" && (
         <View style={styles.centered}>
@@ -180,16 +192,24 @@ export default function PlayerProfileScreen() {
               <Animated.View
                 key={stat.posterId}
                 entering={FadeInUp.duration(300).delay(i * 50)}
-                style={styles.posterRow}
               >
-                <Text style={styles.posterEmoji}>{stat.emoji}</Text>
-                <View style={styles.posterInfo}>
-                  <Text style={styles.posterName} numberOfLines={1}>{stat.displayName}</Text>
-                  <Text style={styles.posterId}>{stat.posterId}</Text>
-                </View>
-                <View style={[styles.pixelBadge, { backgroundColor: teamColor + "20", borderColor: teamColor }]}>
-                  <Text style={[styles.pixelCount, { color: teamColor }]}>{stat.pixelCount} PX</Text>
-                </View>
+                <TouchableOpacity
+                  style={[styles.posterRow, isRevenge && styles.posterRowRevenge]}
+                  activeOpacity={isRevenge ? 0.6 : 1}
+                  onPress={isRevenge ? () => router.push(`/canvas/${stat.posterId}?revenge=true` as any) : undefined}
+                >
+                  <Text style={styles.posterEmoji}>{stat.emoji}</Text>
+                  <View style={styles.posterInfo}>
+                    <Text style={styles.posterName} numberOfLines={1}>{stat.displayName}</Text>
+                    <Text style={styles.posterId}>{stat.posterId}</Text>
+                  </View>
+                  <View style={[styles.pixelBadge, { backgroundColor: teamColor + "20", borderColor: teamColor }]}>
+                    <Text style={[styles.pixelCount, { color: teamColor }]}>{stat.pixelCount} PX</Text>
+                  </View>
+                  {isRevenge && (
+                    <Ionicons name="chevron-forward" size={16} color="#FF4444" style={{ marginLeft: 4 }} />
+                  )}
+                </TouchableOpacity>
               </Animated.View>
             ))
           )}
@@ -304,6 +324,32 @@ const styles = StyleSheet.create({
   emptyEmoji: { fontSize: 40 },
   emptyText: { color: Colors.muted, fontSize: 13, fontWeight: "600" },
 
+  // Revenge banner
+  revengeBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+    backgroundColor: "#3A0A0A",
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: "#FF4444",
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  revengeEmoji: { fontSize: 28 },
+  revengeTitle: {
+    color: "#FF4444",
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 3,
+  },
+  revengeSub: {
+    color: "#FF9999",
+    fontSize: 11,
+    fontWeight: "600",
+    marginTop: 2,
+  },
+
   // Poster row
   posterRow: {
     flexDirection: "row",
@@ -316,6 +362,10 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     marginBottom: Spacing.sm,
     ...Shadows.soft,
+  },
+  posterRowRevenge: {
+    borderColor: "#FF4444",
+    backgroundColor: "#1A0A0A",
   },
   posterEmoji: { fontSize: 24 },
   posterInfo: { flex: 1, gap: 2 },

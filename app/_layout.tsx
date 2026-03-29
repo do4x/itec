@@ -16,8 +16,9 @@ function GlobalToast() {
 
   const handleToastPress = () => {
     if (toast?.actorUsername) {
+      const isAttack = toast?.glitch === true;
       hideToast();
-      router.push(`/player/${toast.actorUsername}` as any);
+      router.push(`/player/${toast.actorUsername}${isAttack ? "?revenge=true" : ""}` as any);
     }
   };
 

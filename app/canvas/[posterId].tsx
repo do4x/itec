@@ -63,7 +63,8 @@ const PIXEL_COLORS = [
 type Tool = "pixel" | "eraser" | "sticker" | "graffiti";
 
 export default function CanvasScreen() {
-  const { posterId, photoUri } = useLocalSearchParams<{ posterId: string; photoUri?: string }>();
+  const { posterId, photoUri, revenge } = useLocalSearchParams<{ posterId: string; photoUri?: string; revenge?: string }>();
+  const isRevenge = revenge === "true";
   const isValidPoster = !!posterId && posterId.trim().length > 0;
   const posterImage = POSTER_IMAGES[posterId as string] ?? (photoUri ? { uri: photoUri } : null);
   const { uid, username, teamId, isGuest } = useGame();
@@ -100,14 +101,43 @@ export default function CanvasScreen() {
   interface PendingGraffiti { pattern: GraffitiPattern; startRow: number; startCol: number; }
   const [pendingGraffiti, setPendingGraffiti] = useState<PendingGraffiti | null>(null);
 
-  // Glitch state
+  // Glitch + SFX
   const glitchX = useSharedValue(0);
+  const attackSfx = useAudioPlayer(require("../../SFX/StergerePixeli.mp3"));
+  const revengeSfx = useAudioPlayer(require("../../SFX/Revenge.mp3"));
 
-  // Territory tracking (pentru territory_change detection)
+  // Refs pentru tracking
   const prevLeaderRef = useRef<string | null>(null);
+  const prevGifsRef = useRef<CanvasGif[]>([]);
+  const myDeletedGifsRef = useRef<Set<string>>(new Set());
+  const revengePlayedRef = useRef(false);
   const glitchStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: glitchX.value }],
   }));
+
+  const triggerAttackGlitch = useCallback(() => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
+    attackSfx.seekTo(0);
+    attackSfx.play();
+    glitchX.value = withSequence(
+      withTiming(-4, { duration: 50 }),
+      withTiming(4, { duration: 50 }),
+      withTiming(-4, { duration: 50 }),
+      withTiming(4, { duration: 50 }),
+      withTiming(-3, { duration: 40 }),
+      withTiming(3, { duration: 40 }),
+      withTiming(0, { duration: 50 }),
+    );
+  }, [attackSfx, glitchX]);
+
+  const triggerRevengeSfx = useCallback(() => {
+    if (revengePlayedRef.current) return;
+    revengePlayedRef.current = true;
+    setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
+    revengeSfx.seekTo(0);
+    revengeSfx.play();
+  }, [revengeSfx]);
 
   // ── Firebase: pixels ──────────────────────────────────────────────────
   useEffect(() => {
@@ -131,16 +161,9 @@ export default function CanvasScreen() {
         const newData = snap.val() as PixelData;
         setPixels((prev) => {
           const oldData = prev.get(snap.key!);
-          // Glitch effect: someone overwrote YOUR pixel
+          // Glitch + SFX: cineva a desenat peste pixelul/graffiti-ul tău
           if (oldData && oldData.uid === uid && newData.uid !== uid) {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            glitchX.value = withSequence(
-              withTiming(-3, { duration: 50 }),
-              withTiming(3, { duration: 50 }),
-              withTiming(-3, { duration: 50 }),
-              withTiming(3, { duration: 50 }),
-              withTiming(0, { duration: 50 }),
-            );
+            triggerAttackGlitch();
           }
           const next = new Map(prev);
           next.set(snap.key!, newData);
@@ -162,6 +185,18 @@ export default function CanvasScreen() {
         id, url: val.url, x: val.x, y: val.y, scale: val.scale, rotation: val.rotation ?? 0,
         uid: val.uid, teamId: val.teamId, username: val.username, type: val.type,
       }));
+
+      // Detectează dacă cineva a șters GIF-ul/posterul AI al tău
+      if (uid && prevGifsRef.current.length > 0) {
+        const newIds = new Set(list.map((g) => g.id));
+        for (const prev of prevGifsRef.current) {
+          if (prev.uid === uid && !newIds.has(prev.id) && !myDeletedGifsRef.current.has(prev.id)) {
+            triggerAttackGlitch();
+            break;
+          }
+        }
+      }
+      prevGifsRef.current = list;
       setGifs(list);
     });
     return () => unsubscribe();
@@ -192,6 +227,7 @@ export default function CanvasScreen() {
   const handlePixelPress = useCallback(async (row: number, col: number, silent = false) => {
     if (!posterId || !uid) return;
     if (isGuest) { if (!silent) warnGuest(); return; }
+    if (isRevenge) triggerRevengeSfx();
     const key = `${row}_${col}`;
 
     if (activeTool === "eraser") {
@@ -252,6 +288,7 @@ export default function CanvasScreen() {
   const handleAddGif = useCallback(async (url: string) => {
     if (!posterId || !uid) return;
     if (isGuest) { warnGuest(); return; }
+    if (isRevenge) triggerRevengeSfx();
     const ok = await spend(100);
     if (!ok) { Alert.alert("Tokens insuficiente", "Ai nevoie de 100 tokens pt un GIF."); return; }
     const gifRef = push(ref(db, `posters/${posterId}/gifs`), {
@@ -275,6 +312,7 @@ export default function CanvasScreen() {
   const handleDeleteGif = useCallback(async (id: string) => {
     if (!posterId) return;
     if (isGuest) { warnGuest(); return; }
+    if (isRevenge) triggerRevengeSfx();
     const ok = await spend(150);
     if (!ok) { Alert.alert("Tokens insuficiente", "Ai nevoie de 150 tokens pt a sterge."); return; }
     const gif = gifs.find((g) => g.id === id);
@@ -329,6 +367,7 @@ export default function CanvasScreen() {
   const handleGraffitiConfirm = useCallback(async () => {
     if (!pendingGraffiti || !posterId || !uid) return;
     if (isGuest) { warnGuest(); return; }
+    if (isRevenge) triggerRevengeSfx();
     const { pattern, startRow, startCol } = pendingGraffiti;
     const ok = await spend(50);
     if (!ok) { Alert.alert("Tokens insuficiente", "Ai nevoie de 50 tokens pt graffiti."); return; }
@@ -365,6 +404,7 @@ export default function CanvasScreen() {
   const handleAiPosterConfirm = useCallback(async (url: string) => {
     if (!posterId || !uid) return;
     if (isGuest) { warnGuest(); return; }
+    if (isRevenge) triggerRevengeSfx();
     const ok = await spend(150);
     if (!ok) { Alert.alert("Tokens insuficiente", "Ai nevoie de 150 tokens pt AI poster."); return; }
     const aiRef = push(ref(db, `posters/${posterId}/gifs`), {
