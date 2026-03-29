@@ -46,7 +46,7 @@ export function usePosterInstances() {
       designId: DesignId,
       userLat: number,
       userLng: number,
-      maxDistanceMeters: number = 4
+      maxDistanceMeters: number = 25
     ): { instance: PosterInstance; distance: number } | null => {
       // Filter instances matching this design
       const candidates = instances.filter((i) => i.designId === designId);

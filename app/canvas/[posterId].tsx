@@ -15,8 +15,8 @@ import {
   db, ref, set, push, onChildAdded, onChildChanged, onValue, remove, update,
   serverTimestamp,
 } from "@/lib/firebase";
-import { VALID_POSTER_IDS } from "@/lib/poster-matcher";
 import { POSTER_DESIGNS, DesignId } from "@/constants/poster-designs";
+import { usePosterInstances } from "@/lib/use-poster-instances";
 import { useTokens } from "@/lib/tokens";
 import { Colors, Spacing, Radii, Typography, Shadows } from "@/constants/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -64,9 +64,13 @@ type Tool = "pixel" | "eraser" | "sticker" | "graffiti";
 
 export default function CanvasScreen() {
   const { posterId, photoUri } = useLocalSearchParams<{ posterId: string; photoUri?: string }>();
-  const isValidPoster = VALID_POSTER_IDS.includes(posterId as any);
+  const isValidPoster = !!posterId && posterId.trim().length > 0;
   const posterImage = POSTER_IMAGES[posterId as string] ?? (photoUri ? { uri: photoUri } : null);
   const { uid, username, teamId, isGuest } = useGame();
+  const { instances } = usePosterInstances();
+  const posterDisplayName = instances.find((i) => i.id === posterId)?.displayName
+    || POSTER_DESIGNS[posterId as DesignId]?.name
+    || posterId;
 
   const warnGuest = () =>
     Alert.alert("Mod Guest", "Creează un cont pentru a salva acțiunile în joc.", [{ text: "OK" }]);
@@ -440,7 +444,7 @@ export default function CanvasScreen() {
           <Ionicons name="arrow-back" size={20} color={Colors.softGray} />
         </TouchableOpacity>
         <Text style={styles.posterLabel} numberOfLines={1}>
-          {POSTER_DESIGNS[posterId as DesignId]?.name || posterId}
+          {posterDisplayName}
         </Text>
         <View style={styles.headerRight}>
           <View style={styles.tokenBadge}>

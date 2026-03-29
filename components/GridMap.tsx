@@ -301,8 +301,10 @@ export default function GridMap({
   useEffect(() => {
     if (!userLoc) return;
     const { x, y } = toXY(userLoc.lat, userLoc.lng);
-    userX.value = withSpring(x, { damping: 20, stiffness: 150 });
-    userY.value = withSpring(y, { damping: 20, stiffness: 150 });
+    const clampedX = Math.max(8, Math.min(MAP_WIDTH - 8, x));
+    const clampedY = Math.max(8, Math.min(MAP_HEIGHT - 8, y));
+    userX.value = withSpring(clampedX, { damping: 20, stiffness: 150 });
+    userY.value = withSpring(clampedY, { damping: 20, stiffness: 150 });
   }, [userLoc]);
 
   const userDotStyle = useAnimatedStyle(() => ({

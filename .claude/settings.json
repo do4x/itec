@@ -10,7 +10,9 @@
       "Bash(ls -la /d/itec/babel* /d/itec/metro*)",
       "Bash(git pull:*)",
       "Bash(npx expo:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(git stash:*)",
+      "Bash(git diff:*)"
     ],
     "additionalDirectories": [
       "C:\\Users\\aeria\\.claude\\plans"
