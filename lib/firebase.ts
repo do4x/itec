@@ -7,6 +7,7 @@
 import { initializeApp } from "firebase/app";
 import {
   getDatabase,
+  get,
   off,
   onChildAdded,
   onChildChanged,
@@ -65,6 +66,6 @@ export const auth = Platform.OS === "web"
     });
 
 // Re-export everything components need
-export { off, onChildAdded, onChildChanged, onValue, push, ref, remove, runTransaction, serverTimestamp, set, update };
+export { get, off, onChildAdded, onChildChanged, onValue, push, ref, remove, runTransaction, serverTimestamp, set, update };
 export { storageRef, uploadBytes, getDownloadURL };
 export { signInAnonymously, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged };

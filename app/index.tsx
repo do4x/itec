@@ -1,12 +1,13 @@
 import { Colors, Radii, Shadows, Spacing } from "@/constants/theme";
-import { db, onValue, ref } from "@/lib/firebase";
+import { db, get, onValue, ref } from "@/lib/firebase";
 import { TEAMS, TeamId, useGame } from "@/lib/game-state";
 import { AVATARS, getAvatar } from "@/constants/avatars";
 import { useTokens } from "@/lib/tokens";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Dimensions,
   KeyboardAvoidingView,
@@ -254,6 +255,26 @@ export default function HomeScreen() {
   const [showJuryInput, setShowJuryInput] = useState(false);
   const [juryCode, setJuryCode] = useState("");
   const [inputFocused, setInputFocused] = useState(false);
+  const [nickStatus, setNickStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounced nickname availability check
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const trimmed = inputValue.trim();
+    if (trimmed.length < 2 || isGuest) { setNickStatus("idle"); return; }
+    setNickStatus("checking");
+    debounceRef.current = setTimeout(async () => {
+      const key = trimmed.toLowerCase();
+      const snap = await get(ref(db, `usernames/${key}`));
+      if (!snap.exists() || snap.val() === uid) {
+        setNickStatus("available");
+      } else {
+        setNickStatus("taken");
+      }
+    }, 600);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [inputValue, uid, isGuest]);
 
   // ── Animations ──
   const glowPulse = useSharedValue(0);
@@ -289,10 +310,14 @@ export default function HomeScreen() {
 
   const selectedTeam = TEAMS[teamId];
 
-  const handleJoin = () => {
-    if (!inputValue.trim()) return;
+  const handleJoin = async () => {
+    if (!inputValue.trim() || nickStatus === "taken" || nickStatus === "checking") return;
     setUsername(inputValue.trim());
-    join();
+    const ok = await join();
+    if (!ok) {
+      setNickStatus("taken"); // race condition: cineva a revendicat nickname-ul între timp
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     router.replace({ pathname: "/(tabs)" });
   };
@@ -334,7 +359,7 @@ export default function HomeScreen() {
     transform: [{ scale: 1 + glowPulse.value * 0.06 }],
   }));
 
-  const canJoin = inputValue.trim().length > 0;
+  const canJoin = inputValue.trim().length > 0 && nickStatus !== "taken" && nickStatus !== "checking";
 
   const ctaAnimStyle = useAnimatedStyle(() => {
     if (!canJoin) return {};
@@ -411,15 +436,15 @@ export default function HomeScreen() {
               { borderColor: selectedTeam.color + "18" },
             ]}
           >
-            {/* Tag Name Input */}
+            {/* Nickname Input */}
             <View style={styles.inputSection}>
-              <Text style={styles.label}>TAG NAME</Text>
+              <Text style={styles.label}>NICKNAME</Text>
               <View
                 style={[
                   styles.inputWrapper,
-                  inputFocused && {
-                    borderColor: selectedTeam.color + "50",
-                  },
+                  inputFocused && { borderColor: selectedTeam.color + "50" },
+                  nickStatus === "taken" && { borderColor: Colors.error + "60" },
+                  nickStatus === "available" && { borderColor: Colors.success + "60" },
                 ]}
               >
                 <Text style={styles.inputPrefix}>@</Text>
@@ -427,7 +452,7 @@ export default function HomeScreen() {
                   style={styles.input}
                   value={inputValue}
                   onChangeText={setInputValue}
-                  placeholder="scrie-ți tag-ul..."
+                  placeholder="alege-ți nickname-ul..."
                   placeholderTextColor={Colors.muted}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -435,20 +460,24 @@ export default function HomeScreen() {
                   onFocus={() => setInputFocused(true)}
                   onBlur={() => setInputFocused(false)}
                 />
-                {inputValue.trim().length > 0 && (
-                  <Animated.View
-                    entering={ZoomIn.duration(200)}
-                    style={[
-                      styles.inputCheck,
-                      { backgroundColor: selectedTeam.color + "25" },
-                    ]}
-                  >
-                    <Text style={{ fontSize: 10, color: selectedTeam.color }}>
-                      ✓
-                    </Text>
+                {/* Availability indicator */}
+                {nickStatus === "checking" && (
+                  <ActivityIndicator size="small" color={Colors.muted} style={{ marginLeft: 4 }} />
+                )}
+                {nickStatus === "available" && (
+                  <Animated.View entering={ZoomIn.duration(200)} style={[styles.inputCheck, { backgroundColor: Colors.success + "25" }]}>
+                    <Text style={{ fontSize: 10, color: Colors.success }}>✓</Text>
+                  </Animated.View>
+                )}
+                {nickStatus === "taken" && (
+                  <Animated.View entering={ZoomIn.duration(200)} style={[styles.inputCheck, { backgroundColor: Colors.error + "20" }]}>
+                    <Text style={{ fontSize: 9, color: Colors.error }}>✗</Text>
                   </Animated.View>
                 )}
               </View>
+              {nickStatus === "taken" && (
+                <Text style={styles.nickError}>Nickname-ul este deja folosit.</Text>
+              )}
             </View>
 
             {/* Avatar Selection */}
@@ -692,6 +721,13 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
+  },
+  nickError: {
+    color: Colors.error,
+    fontSize: 10,
+    fontWeight: "600",
+    letterSpacing: 1,
+    marginTop: 6,
   },
 
   // Guest banner

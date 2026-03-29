@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Colors } from "@/constants/theme";
 import { useAuth } from "./auth";
-import { db, ref, set, onValue, serverTimestamp } from "./firebase";
+import { db, ref, set, get, onValue, runTransaction, serverTimestamp } from "./firebase";
 
 export const TEAMS = {
   red: { name: "VANDALS", color: Colors.teamRed, glow: Colors.teamRed + "44" },
@@ -25,7 +25,7 @@ interface GameState {
   setUsername: (name: string) => void;
   setTeamId: (team: TeamId) => void;
   setAvatar: (avatarId: string) => void;
-  join: () => void;
+  join: () => Promise<boolean>;
   logout: () => Promise<void>;
   setIsJury: (v: boolean) => void;
 }
@@ -73,20 +73,35 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }, { onlyOnce: true });
   }, [uid, isGuest]);
 
-  const join = () => {
-    setIsJoined(true);
-    // Guests don't persist to Firebase
-    if (uid && !isGuest) {
-      set(ref(db, `users/${uid}`), {
-        username,
-        teamId,
-        avatar,
-        tokens: 200,
-        lastTokenGrant: serverTimestamp(),
-        joinedAt: serverTimestamp(),
-        isJury: false,
-      });
+  const join = async (): Promise<boolean> => {
+    // Guests skip uniqueness check and Firebase writes
+    if (isGuest) {
+      setIsJoined(true);
+      return true;
     }
+    if (!uid) return false;
+
+    // Atomic claim: usernames/${key} = uid (case-insensitive key)
+    const key = username.toLowerCase().trim();
+    const nicknameRef = ref(db, `usernames/${key}`);
+    const result = await runTransaction(nicknameRef, (current) => {
+      if (current === null || current === uid) return uid; // unclaimed or already ours
+      return; // abort — taken by someone else
+    });
+
+    if (!result.committed) return false; // nickname taken
+
+    setIsJoined(true);
+    set(ref(db, `users/${uid}`), {
+      username,
+      teamId,
+      avatar,
+      tokens: 200,
+      lastTokenGrant: serverTimestamp(),
+      joinedAt: serverTimestamp(),
+      isJury: false,
+    });
+    return true;
   };
 
   const logout = async () => {
