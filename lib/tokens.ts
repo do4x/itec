@@ -1,30 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
-import { auth, db, ref, onValue, runTransaction, serverTimestamp, set } from "./firebase";
+import { auth, db, ref, onValue, runTransaction } from "./firebase";
 
-const TOKEN_CAP = 2000;
-const REFILL_RATE = 20; // per minute
+export const TOKEN_CAP = 2000;
+export const REFILL_RATE = 20; // per minute
 const REFILL_INTERVAL = 60_000; // 1 minute
-
-// ── Dev mode (infinite spending) ──────────────────────────────────────────────
-const DEV_CODES = new Set(["ITEC2026", "NOSPEND", "OVERRIDE", "HACKATHON"]);
-let _devModeActive = false;
-
-export function activateDevCode(code: string): boolean {
-  if (DEV_CODES.has(code.trim().toUpperCase())) {
-    _devModeActive = true;
-    return true;
-  }
-  return false;
-}
-
-export function isDevMode(): boolean {
-  return _devModeActive;
-}
 
 export function useTokens(uid: string | null) {
   const [tokens, setTokens] = useState(200);
+  const [nextRefillIn, setNextRefillIn] = useState(REFILL_INTERVAL / 1000);
 
-  // Listen to token balance in real-time + initializeaza la 100 daca lipseste
+  // Listen to token balance in real-time + initialize to 200 if missing
   useEffect(() => {
     if (!uid) return;
     const tokensRef = ref(db, `users/${uid}/tokens`);
@@ -32,22 +17,31 @@ export function useTokens(uid: string | null) {
       const val = snap.val();
       if (typeof val === "number") {
         setTokens(val);
-        // Bump existing accounts below the initial grant to 200
         if (val < 200) {
-          runTransaction(tokensRef, (current) => (current !== null && current < 200) ? 200 : current);
+          runTransaction(tokensRef, (current) =>
+            current !== null && current < 200 ? 200 : current
+          );
         }
       } else {
-        // Nu exista record de tokens — initializeaza
-        runTransaction(tokensRef, (current) => current === null ? 200 : current);
+        runTransaction(tokensRef, (current) => (current === null ? 200 : current));
       }
     });
     return () => unsub();
   }, [uid]);
 
-  // Token regeneration timer
+  // Token regeneration + countdown timer (synced)
   useEffect(() => {
     if (!uid) return;
-    const interval = setInterval(() => {
+
+    setNextRefillIn(REFILL_INTERVAL / 1000);
+
+    // 1-second countdown
+    const tick = setInterval(() => {
+      setNextRefillIn((prev) => (prev <= 1 ? REFILL_INTERVAL / 1000 : prev - 1));
+    }, 1000);
+
+    // Actual refill every minute (synced with countdown reset above)
+    const refill = setInterval(() => {
       const tokensRef = ref(db, `users/${uid}/tokens`);
       runTransaction(tokensRef, (current) => {
         if (current === null) return 200;
@@ -55,31 +49,40 @@ export function useTokens(uid: string | null) {
         return Math.min(current + REFILL_RATE, TOKEN_CAP);
       });
     }, REFILL_INTERVAL);
-    return () => clearInterval(interval);
+
+    return () => {
+      clearInterval(tick);
+      clearInterval(refill);
+    };
   }, [uid]);
 
-  const spend = useCallback(async (amount: number): Promise<boolean> => {
-    if (_devModeActive) return true; // dev mode: skip deduction
-    if (!uid || auth.currentUser?.isAnonymous) return false;
-    const tokensRef = ref(db, `users/${uid}/tokens`);
-    const result = await runTransaction(tokensRef, (current) => {
-      const balance = current === null ? 200 : current; // initializeaza daca lipseste
-      if (balance < amount) return; // abort — insuficient
-      return balance - amount;
-    });
-    return result.committed;
-  }, [uid]);
+  const spend = useCallback(
+    async (amount: number): Promise<boolean> => {
+      if (!uid || auth.currentUser?.isAnonymous) return false;
+      const tokensRef = ref(db, `users/${uid}/tokens`);
+      const result = await runTransaction(tokensRef, (current) => {
+        const balance = current === null ? 200 : current;
+        if (balance < amount) return; // abort — insufficient
+        return balance - amount;
+      });
+      return result.committed;
+    },
+    [uid]
+  );
 
-  const canAfford = useCallback((amount: number) => _devModeActive || tokens >= amount, [tokens]);
+  const canAfford = useCallback((amount: number) => tokens >= amount, [tokens]);
 
-  const grant = useCallback(async (amount: number) => {
-    if (!uid) return;
-    const tokensRef = ref(db, `users/${uid}/tokens`);
-    await runTransaction(tokensRef, (current) => {
-      if (current === null) return amount;
-      return Math.min(current + amount, TOKEN_CAP);
-    });
-  }, [uid]);
+  const grant = useCallback(
+    async (amount: number) => {
+      if (!uid) return;
+      const tokensRef = ref(db, `users/${uid}/tokens`);
+      await runTransaction(tokensRef, (current) => {
+        if (current === null) return amount;
+        return Math.min(current + amount, TOKEN_CAP);
+      });
+    },
+    [uid]
+  );
 
-  return { tokens, spend, canAfford, grant, TOKEN_CAP };
+  return { tokens, spend, canAfford, grant, TOKEN_CAP, REFILL_RATE, nextRefillIn };
 }

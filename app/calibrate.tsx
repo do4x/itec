@@ -5,8 +5,9 @@ import {
     PosterInstance,
 } from "@/constants/poster-designs";
 import { Colors, Radii, Shadows, Spacing } from "@/constants/theme";
-import { db, onValue, ref, remove, set } from "@/lib/firebase";
-import { activateDevCode, isDevMode } from "@/lib/tokens";
+import { db, onValue, ref, remove, set, get } from "@/lib/firebase";
+import { useTokens, TOKEN_CAP } from "@/lib/tokens";
+import { useGame } from "@/lib/game-state";
 import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
 import { router } from "expo-router";
@@ -30,11 +31,13 @@ const NUM_SAMPLES = 5;
 
 export default function CalibrateScreen() {
   const insets = useSafeAreaInsets();
+  const { uid } = useGame();
+  const { grant } = useTokens(uid);
   const [instances, setInstances] = useState<Record<string, PosterInstance>>({});
   const [activeSlot, setActiveSlot] = useState<string | null>(null);
   const [sampleCount, setSampleCount] = useState(0);
   const [devCodeInput, setDevCodeInput] = useState("");
-  const [devActive, setDevActive] = useState(isDevMode());
+  const [devResult, setDevResult] = useState<"idle" | "success" | "error">("idle");
 
   // For the "add new" flow
   const [showAddModal, setShowAddModal] = useState(false);
@@ -262,37 +265,40 @@ export default function CalibrateScreen() {
 
         {/* Dev Code Section */}
         <View style={styles.devCard}>
-          <Text style={styles.devTitle}>DEV MODE</Text>
-          {devActive ? (
+          <Text style={styles.devTitle}>DEV CODE</Text>
+          {devResult === "success" ? (
             <View style={styles.devActiveRow}>
               <Text style={styles.devActiveDot}>●</Text>
-              <Text style={styles.devActiveText}>INFINITE TOKENS ACTIVE</Text>
+              <Text style={styles.devActiveText}>+2000 TOKENS GRANTED</Text>
             </View>
           ) : (
             <View style={styles.devInputRow}>
               <TextInput
-                style={styles.devInput}
+                style={[styles.devInput, devResult === "error" && { borderColor: Colors.teamRed + "80" }]}
                 value={devCodeInput}
-                onChangeText={setDevCodeInput}
+                onChangeText={(v) => { setDevCodeInput(v); setDevResult("idle"); }}
                 placeholder="Enter dev code"
                 placeholderTextColor={Colors.muted}
                 autoCapitalize="characters"
               />
               <TouchableOpacity
                 style={styles.devBtn}
-                onPress={() => {
-                  const ok = activateDevCode(devCodeInput);
-                  if (ok) {
-                    setDevActive(true);
+                onPress={async () => {
+                  const snap = await get(ref(db, "config/juryCode"));
+                  const correctCode = snap.val();
+                  if (correctCode && devCodeInput.trim() === correctCode) {
+                    await grant(TOKEN_CAP);
                     setDevCodeInput("");
+                    setDevResult("success");
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    setTimeout(() => setDevResult("idle"), 3000);
                   } else {
+                    setDevResult("error");
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-                    Alert.alert("Invalid code");
                   }
                 }}
               >
-                <Text style={styles.devBtnText}>UNLOCK</Text>
+                <Text style={styles.devBtnText}>GRANT</Text>
               </TouchableOpacity>
             </View>
           )}

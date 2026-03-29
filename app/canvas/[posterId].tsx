@@ -72,7 +72,7 @@ export default function CanvasScreen() {
     Alert.alert("Mod Guest", "Creează un cont pentru a salva acțiunile în joc.", [{ text: "OK" }]);
   const teamColor = TEAMS[teamId]?.color ?? Colors.teamCyan;
   const insets = useSafeAreaInsets();
-  const { tokens, spend, canAfford } = useTokens(uid);
+  const { tokens, spend, canAfford, TOKEN_CAP, REFILL_RATE, nextRefillIn } = useTokens(uid);
 
   const [pixels, setPixels] = useState<Map<string, PixelData>>(new Map());
   const [brushColor, setBrushColor] = useState<string>(teamColor);
@@ -220,25 +220,23 @@ export default function CanvasScreen() {
         username, teamId, posterId,
         ...(isOverride ? { targetUsername: existing.username, targetTeamId: existing.teamId } : {}),
       });
-      // Detectează schimbare de lider teritorial
-      setPixels((prev) => {
-        const pixelsObj: Record<string, any> = {};
-        prev.forEach((v, k) => { pixelsObj[k] = v; });
-        pixelsObj[key] = pixelData;
-        const territory = calculateTerritory(pixelsObj);
-        const newLeader = territory.dominantTeam;
-        if (newLeader && newLeader !== prevLeaderRef.current) {
-          prevLeaderRef.current = newLeader;
-          const totalCells = 40 * 57;
-          const leaderPixels = territory.scores[newLeader] ?? 0;
-          if (leaderPixels >= totalCells) {
-            logActivity({ type: "poster_complete", username, teamId, posterId });
-          } else {
-            logActivity({ type: "territory_change", username, teamId, posterId });
-          }
+      // Detectează schimbare de lider teritorial — calculat ÎNAINTE de setPixels,
+      // direct din Map-ul curent + noul pixel, evitând logActivity în updater
+      const pixelsForTerritory: Record<string, any> = {};
+      pixels.forEach((v, k) => { pixelsForTerritory[k] = v; });
+      pixelsForTerritory[key] = pixelData;
+      const territory = calculateTerritory(pixelsForTerritory);
+      const newLeader = territory.dominantTeam;
+      if (newLeader && newLeader !== prevLeaderRef.current) {
+        prevLeaderRef.current = newLeader;
+        const totalCells = 40 * 57;
+        const leaderPixels = territory.scores[newLeader] ?? 0;
+        if (leaderPixels >= totalCells) {
+          logActivity({ type: "poster_complete", username, teamId, posterId });
+        } else {
+          logActivity({ type: "territory_change", username, teamId, posterId });
         }
-        return prev;
-      });
+      }
     }
   }, [posterId, uid, activeTool, brushColor, teamId, username, spend, pixels]);
 
@@ -448,6 +446,13 @@ export default function CanvasScreen() {
           <View style={styles.tokenBadge}>
             <TokenIcon size={14} color={Colors.teamYellow} innerColor={Colors.navyDeep} />
             <Text style={styles.tokenText}>{tokens}</Text>
+            {tokens < TOKEN_CAP && (
+              <>
+                <View style={styles.tokenDivider} />
+                <Ionicons name="time-outline" size={11} color={Colors.muted} />
+                <Text style={styles.refillTimer}>+{REFILL_RATE} {nextRefillIn}s</Text>
+              </>
+            )}
           </View>
           <Animated.View style={[styles.pulseDot, pulseStyle]} />
           <View style={[styles.teamDot, { backgroundColor: teamColor }]} />
@@ -686,6 +691,8 @@ const styles = StyleSheet.create({
   headerRight: { flexDirection: "row", alignItems: "center", gap: Spacing.sm },
   tokenBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: Colors.navyMid, paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: Radii.full, borderWidth: 1, borderColor: Colors.teamYellow + "44" },
   tokenText: { fontSize: 12, fontWeight: "800", color: Colors.teamYellow },
+  tokenDivider: { width: 1, height: 10, backgroundColor: Colors.navyLight, marginHorizontal: 1 },
+  refillTimer: { fontSize: 10, fontWeight: "700", color: Colors.muted, letterSpacing: 0.5 },
   pulseDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.success },
   teamDot: { width: 12, height: 12, borderRadius: 6 },
   territoryBar: { flexDirection: "row", height: 6, borderRadius: 3, overflow: "hidden", marginBottom: Spacing.md },

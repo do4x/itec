@@ -43,7 +43,7 @@ export default function PlayerProfileScreen() {
     async function loadPlayer() {
       try {
         // 1. Lookup UID from username
-        const uidSnap = await get(ref(db, `usernames/${username.toLowerCase()}`));
+        const uidSnap = await get(ref(db, `usernames/${username.toLowerCase().trim()}`));
         if (!uidSnap.exists()) {
           if (!cancelled) setLoadState("not_found");
           return;
@@ -100,7 +100,8 @@ export default function PlayerProfileScreen() {
           setPosterStats(stats);
           setLoadState("ready");
         }
-      } catch {
+      } catch (e) {
+        console.error("[PlayerProfile] load error:", e);
         if (!cancelled) setLoadState("not_found");
       }
     }
