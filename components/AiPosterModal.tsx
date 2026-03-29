@@ -1,24 +1,40 @@
 import React, { useState, useEffect } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Modal, TextInput, ActivityIndicator, Image,
+  Modal, TextInput, ActivityIndicator, Image, Alert,
 } from "react-native";
+import Animated, {
+  useSharedValue, useAnimatedStyle, withSequence, withTiming,
+} from "react-native-reanimated";
 import { generateAiPoster } from "@/lib/ai-gen";
+import { db, ref, update } from "@/lib/firebase";
 import { Colors, Spacing, Radii, Typography } from "@/constants/theme";
+
+const RICKROLL_URL = "https://www.myinstants.com/media/sounds/rickroll.mp3";
+
+const RAINBOW = ["#FF0000", "#FF7F00", "#FFFF00", "#00FF00", "#0000FF", "#8B00FF"];
 
 interface AiPosterModalProps {
   visible: boolean;
   onConfirm: (url: string) => void;
   onClose: () => void;
+  posterId?: string;
+  uid?: string | null;
+  username?: string;
 }
 
-export default function AiPosterModal({ visible, onConfirm, onClose }: AiPosterModalProps) {
+export default function AiPosterModal({ visible, onConfirm, onClose, posterId, uid, username }: AiPosterModalProps) {
   const [prompt, setPrompt]       = useState("");
   const [imageUri, setImageUri]   = useState<string | null>(null);
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState<string | null>(null);
   // ready = true după ce expo-image a terminat de decodat și redat imaginea
   const [ready, setReady]         = useState(false);
+
+  // Rainbow flash state for easter egg
+  const [rainbowFlash, setRainbowFlash] = useState(false);
+  const rainbowOpacity = useSharedValue(0);
+  const [rainbowBg, setRainbowBg] = useState(RAINBOW[0]);
 
   useEffect(() => {
     if (!visible) reset();
@@ -29,10 +45,57 @@ export default function AiPosterModal({ visible, onConfirm, onClose }: AiPosterM
     setLoading(false);
     setError(null);
     setReady(false);
+    setRainbowFlash(false);
   };
+
+  const rainbowStyle = useAnimatedStyle(() => ({
+    opacity: rainbowOpacity.value,
+  }));
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
+
+    // ── Easter egg: rickroll ──────────────────────────────────────────────
+    if (prompt.trim().toLowerCase() === "efn") {
+      if (!posterId || !uid) return;
+
+      // Rainbow flash animation
+      setRainbowFlash(true);
+      let idx = 0;
+      const flashInterval = setInterval(() => {
+        idx = (idx + 1) % RAINBOW.length;
+        setRainbowBg(RAINBOW[idx]);
+      }, 100);
+
+      rainbowOpacity.value = withSequence(
+        withTiming(0.6, { duration: 150 }),
+        withTiming(0.3, { duration: 150 }),
+        withTiming(0.6, { duration: 150 }),
+        withTiming(0.3, { duration: 150 }),
+        withTiming(0.6, { duration: 150 }),
+        withTiming(0, { duration: 200 }),
+      );
+
+      // Save rickroll as anthem (overrides any existing anthem)
+      await update(ref(db, `posters/${posterId}/anthem`), {
+        url: RICKROLL_URL,
+        teamId: "efn",
+        uid,
+        username: username ?? "anonymous",
+      });
+
+      setTimeout(() => {
+        clearInterval(flashInterval);
+        setRainbowFlash(false);
+        Alert.alert("🎵 You've been Rick Rolled! 🎵", "Never gonna give you up, never gonna let you down...");
+        setPrompt("");
+        reset();
+        onClose();
+      }, 1000);
+      return;
+    }
+    // ── End easter egg ───────────────────────────────────────────────────
+
     setLoading(true);
     setImageUri(null);
     setError(null);
@@ -146,6 +209,18 @@ export default function AiPosterModal({ visible, onConfirm, onClose }: AiPosterM
               </>
             )}
           </View>
+
+          {/* Rainbow flash overlay for easter egg */}
+          {rainbowFlash && (
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                StyleSheet.absoluteFill,
+                { backgroundColor: rainbowBg, borderTopLeftRadius: Radii.xl, borderTopRightRadius: Radii.xl },
+                rainbowStyle,
+              ]}
+            />
+          )}
 
         </View>
       </View>

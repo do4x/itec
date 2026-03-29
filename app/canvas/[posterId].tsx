@@ -16,6 +16,7 @@ import {
   serverTimestamp,
 } from "@/lib/firebase";
 import { POSTER_DESIGNS, DesignId } from "@/constants/poster-designs";
+import { VALID_POSTER_IDS } from "@/lib/poster-matcher";
 import { usePosterInstances } from "@/lib/use-poster-instances";
 import { useTokens } from "@/lib/tokens";
 import { Colors, Spacing, Radii, Typography, Shadows } from "@/constants/theme";
@@ -69,6 +70,7 @@ export default function CanvasScreen() {
   const posterImage = POSTER_IMAGES[posterId as string] ?? (photoUri ? { uri: photoUri } : null);
   const { uid, username, teamId, isGuest } = useGame();
   const { instances } = usePosterInstances();
+  const isAnchorPoster = instances.some(i => i.id === posterId) || VALID_POSTER_IDS.includes(posterId as any);
   const posterDisplayName = instances.find((i) => i.id === posterId)?.displayName
     || POSTER_DESIGNS[posterId as DesignId]?.name
     || posterId;
@@ -141,7 +143,7 @@ export default function CanvasScreen() {
 
   // ── Firebase: pixels ──────────────────────────────────────────────────
   useEffect(() => {
-    if (!posterId || !isValidPoster) return;
+    if (!posterId || !isValidPoster || !isAnchorPoster) return;
     const pixelsRef = ref(db, `posters/${posterId}/pixels`);
 
     // onChildAdded handles both initial load (fires once per existing child)
@@ -177,7 +179,7 @@ export default function CanvasScreen() {
 
   // ── Firebase: GIFs ─────────────────────────────────────────────────────
   useEffect(() => {
-    if (!posterId || !isValidPoster) return;
+    if (!posterId || !isValidPoster || !isAnchorPoster) return;
     const gifsRef = ref(db, `posters/${posterId}/gifs`);
     const unsubscribe = onValue(gifsRef, (snapshot) => {
       const data = snapshot.val() ?? {};
@@ -204,7 +206,7 @@ export default function CanvasScreen() {
 
   // ── Firebase: Anthem ───────────────────────────────────────────────────
   useEffect(() => {
-    if (!posterId || !isValidPoster) return;
+    if (!posterId || !isValidPoster || !isAnchorPoster) return;
     const anthemRef = ref(db, `posters/${posterId}/anthem`);
     const unsubscribe = onValue(anthemRef, (snapshot) => {
       setAnthem(snapshot.val() ?? null);
@@ -235,10 +237,10 @@ export default function CanvasScreen() {
       if (!existing) return;
       const ok = await spend(10);
       if (!ok) { if (!silent) Alert.alert("Tokens insuficiente", "Ai nevoie de 10 tokens pt a sterge un pixel."); return; }
-      remove(ref(db, `posters/${posterId}/pixels/${key}`));
+      if (isAnchorPoster) remove(ref(db, `posters/${posterId}/pixels/${key}`));
       setPixels((prev) => { const n = new Map(prev); n.delete(key); return n; });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      logActivity({
+      if (isAnchorPoster) logActivity({
         type: "pixel_delete",
         username, teamId, posterId,
         ...(existing.uid !== uid ? { targetUsername: existing.username, targetTeamId: existing.teamId } : {}),
@@ -252,10 +254,10 @@ export default function CanvasScreen() {
       const ok = await spend(10);
       if (!ok) { if (!silent) Alert.alert("Tokens insuficiente", "Ai nevoie de 10 tokens pt a colora un pixel."); return; }
       const pixelData: PixelData = { color: brushColor, teamId, username, uid };
-      set(ref(db, `posters/${posterId}/pixels/${key}`), { ...pixelData, t: serverTimestamp() });
+      if (isAnchorPoster) set(ref(db, `posters/${posterId}/pixels/${key}`), { ...pixelData, t: serverTimestamp() });
       setPixels((prev) => { const n = new Map(prev); n.set(key, pixelData); return n; });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      logActivity({
+      if (isAnchorPoster) logActivity({
         type: isOverride ? "pixel_override" : "pixel",
         username, teamId, posterId,
         ...(isOverride ? { targetUsername: existing.username, targetTeamId: existing.teamId } : {}),
@@ -271,14 +273,16 @@ export default function CanvasScreen() {
         prevLeaderRef.current = newLeader;
         const totalCells = 40 * 57;
         const leaderPixels = territory.scores[newLeader] ?? 0;
-        if (leaderPixels >= totalCells) {
-          logActivity({ type: "poster_complete", username, teamId, posterId });
-        } else {
-          logActivity({ type: "territory_change", username, teamId, posterId });
+        if (isAnchorPoster) {
+          if (leaderPixels >= totalCells) {
+            logActivity({ type: "poster_complete", username, teamId, posterId });
+          } else {
+            logActivity({ type: "territory_change", username, teamId, posterId });
+          }
         }
       }
     }
-  }, [posterId, uid, activeTool, brushColor, teamId, username, spend, pixels]);
+  }, [posterId, uid, activeTool, brushColor, teamId, username, spend, pixels, isAnchorPoster]);
 
   const handlePixelDrag = useCallback(async (row: number, col: number) => {
     handlePixelPress(row, col, true);
@@ -291,23 +295,30 @@ export default function CanvasScreen() {
     if (isRevenge) triggerRevengeSfx();
     const ok = await spend(100);
     if (!ok) { Alert.alert("Tokens insuficiente", "Ai nevoie de 100 tokens pt un GIF."); return; }
-    const gifRef = push(ref(db, `posters/${posterId}/gifs`), {
-      url, x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, scale: 1, rotation: 0, teamId, username, uid, type: "gif",
-    });
-    if (gifRef.key) {
-      setGifs((prev) => prev.find((g) => g.id === gifRef.key) ? prev : [...prev, {
-        id: gifRef.key, url, x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, scale: 1, rotation: 0,
-      }]);
-      setSelectedGifId(gifRef.key);
+    if (isAnchorPoster) {
+      const gifRef = push(ref(db, `posters/${posterId}/gifs`), {
+        url, x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, scale: 1, rotation: 0, teamId, username, uid, type: "gif",
+      });
+      if (gifRef.key) {
+        setGifs((prev) => prev.find((g) => g.id === gifRef.key) ? prev : [...prev, {
+          id: gifRef.key, url, x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, scale: 1, rotation: 0,
+        }]);
+        setSelectedGifId(gifRef.key);
+      }
+    } else {
+      const localId = `local_${Date.now()}`;
+      setGifs((prev) => [...prev, { id: localId, url, x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, scale: 1, rotation: 0 }]);
+      setSelectedGifId(localId);
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    logActivity({ type: "gif", username, teamId, posterId });
-  }, [posterId, uid, teamId, username, spend]);
+    if (isAnchorPoster) logActivity({ type: "gif", username, teamId, posterId });
+  }, [posterId, uid, teamId, username, spend, isAnchorPoster]);
 
   const handleUpdateGif = useCallback((id: string, x: number, y: number, scale: number, rotation: number) => {
     if (!posterId) return;
-    update(ref(db, `posters/${posterId}/gifs/${id}`), { x, y, scale, rotation });
-  }, [posterId]);
+    if (isAnchorPoster) update(ref(db, `posters/${posterId}/gifs/${id}`), { x, y, scale, rotation });
+    setGifs((prev) => prev.map((g) => g.id === id ? { ...g, x, y, scale, rotation } : g));
+  }, [posterId, isAnchorPoster]);
 
   const handleDeleteGif = useCallback(async (id: string) => {
     if (!posterId) return;
@@ -318,16 +329,16 @@ export default function CanvasScreen() {
     const gif = gifs.find((g) => g.id === id);
     setGifs((prev) => prev.filter((g) => g.id !== id));
     setSelectedGifId(null);
-    remove(ref(db, `posters/${posterId}/gifs/${id}`));
+    if (isAnchorPoster) remove(ref(db, `posters/${posterId}/gifs/${id}`));
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (gif) {
+    if (isAnchorPoster && gif) {
       logActivity({
         type: "gif_delete",
         username, teamId, posterId,
         ...(gif.teamId && gif.teamId !== teamId ? { targetUsername: gif.username, targetTeamId: gif.teamId } : {}),
       });
     }
-  }, [posterId, spend, gifs, username, teamId]);
+  }, [posterId, spend, gifs, username, teamId, isAnchorPoster]);
 
   const handleSelectGif = useCallback((id: string | null) => setSelectedGifId(id), []);
 
@@ -383,17 +394,17 @@ export default function CanvasScreen() {
         }
       });
     });
-    update(ref(db, `posters/${posterId}/pixels`), updates);
+    if (isAnchorPoster) update(ref(db, `posters/${posterId}/pixels`), updates);
     setPixels((prev) => {
       const next = new Map(prev);
       Object.entries(updates).forEach(([key, val]) => next.set(key, val as PixelData));
       return next;
     });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    logActivity({ type: "graffiti", username, teamId, posterId });
+    if (isAnchorPoster) logActivity({ type: "graffiti", username, teamId, posterId });
     setPendingGraffiti(null);
     setActiveTool("pixel");
-  }, [pendingGraffiti, posterId, uid, brushColor, teamId, username, spend]);
+  }, [pendingGraffiti, posterId, uid, brushColor, teamId, username, spend, isAnchorPoster]);
 
   const handleGraffitiCancel = useCallback(() => {
     setPendingGraffiti(null);
@@ -407,17 +418,23 @@ export default function CanvasScreen() {
     if (isRevenge) triggerRevengeSfx();
     const ok = await spend(150);
     if (!ok) { Alert.alert("Tokens insuficiente", "Ai nevoie de 150 tokens pt AI poster."); return; }
-    const aiRef = push(ref(db, `posters/${posterId}/gifs`), {
-      url, x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, scale: 1, rotation: 0, teamId, username, uid, type: "ai_poster",
-    });
-    if (aiRef.key) {
-      setGifs((prev) => prev.find((g) => g.id === aiRef.key) ? prev : [...prev, { id: aiRef.key!, url, x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, scale: 1, rotation: 0 }]);
-      setSelectedGifId(aiRef.key);
+    if (isAnchorPoster) {
+      const aiRef = push(ref(db, `posters/${posterId}/gifs`), {
+        url, x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, scale: 1, rotation: 0, teamId, username, uid, type: "ai_poster",
+      });
+      if (aiRef.key) {
+        setGifs((prev) => prev.find((g) => g.id === aiRef.key) ? prev : [...prev, { id: aiRef.key!, url, x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, scale: 1, rotation: 0 }]);
+        setSelectedGifId(aiRef.key);
+      }
+    } else {
+      const localId = `local_ai_${Date.now()}`;
+      setGifs((prev) => [...prev, { id: localId, url, x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, scale: 1, rotation: 0 }]);
+      setSelectedGifId(localId);
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    logActivity({ type: "ai_poster", username, teamId, posterId });
+    if (isAnchorPoster) logActivity({ type: "ai_poster", username, teamId, posterId });
     setActiveTool("sticker");
-  }, [posterId, uid, teamId, username, spend]);
+  }, [posterId, uid, teamId, username, spend, isAnchorPoster]);
 
   // ── Anthem callbacks ───────────────────────────────────────────────────
   const handleAnthemSelect = useCallback(async (track: JamendoTrack) => {
@@ -425,27 +442,31 @@ export default function CanvasScreen() {
     if (isGuest) { warnGuest(); return; }
     const ok = await spend(100);
     if (!ok) { Alert.alert("Tokens insuficiente", "Ai nevoie de 100 tokens pt anthem."); return; }
-    update(ref(db, `posters/${posterId}/anthem`), {
-      url: track.audio,
-      teamId,
-      name: track.name,
-      artist: track.artist_name,
-    });
+    if (isAnchorPoster) {
+      update(ref(db, `posters/${posterId}/anthem`), {
+        url: track.audio,
+        teamId,
+        name: track.name,
+        artist: track.artist_name,
+      });
+      const isOverride = anthem?.teamId && anthem.teamId !== teamId;
+      logActivity({
+        type: isOverride ? "anthem_override" : "anthem",
+        username, teamId, posterId,
+        ...(isOverride ? { targetTeamId: anthem.teamId } : {}),
+      });
+    }
+    setAnthem({ url: track.audio, teamId, name: track.name, artist: track.artist_name });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const isOverride = anthem?.teamId && anthem.teamId !== teamId;
-    logActivity({
-      type: isOverride ? "anthem_override" : "anthem",
-      username, teamId, posterId,
-      ...(isOverride ? { targetTeamId: anthem.teamId } : {}),
-    });
     setShowAnthemPicker(false);
-  }, [posterId, teamId, uid, username, spend]);
+  }, [posterId, teamId, uid, username, spend, isAnchorPoster]);
 
   const handleClearAnthem = useCallback(() => {
     if (!posterId) return;
-    remove(ref(db, `posters/${posterId}/anthem`));
+    if (isAnchorPoster) remove(ref(db, `posters/${posterId}/anthem`));
+    setAnthem(null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, [posterId]);
+  }, [posterId, isAnchorPoster]);
 
   // ── Derived state ──────────────────────────────────────────────────────
   const teamPixelCounts: Record<string, number> = {};
@@ -478,6 +499,12 @@ export default function CanvasScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + Spacing.md }]}>
+      {/* Playground banner for non-anchor posters */}
+      {!isAnchorPoster && (
+        <View style={styles.playgroundBanner}>
+          <Text style={styles.playgroundText}>PLAYGROUND — not saved</Text>
+        </View>
+      )}
       {/* Header */}
       <Animated.View entering={FadeInDown.duration(300)} style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
@@ -721,7 +748,7 @@ export default function CanvasScreen() {
 
       <GifPickerModal visible={showGifPicker} onSelect={handleAddGif} onClose={() => setShowGifPicker(false)} />
       <GraffitiPicker visible={showGraffitiPicker} teamColor={brushColor} onSelect={handleGraffitiPreview} onClose={() => setShowGraffitiPicker(false)} />
-      <AiPosterModal visible={showAiPoster} onConfirm={handleAiPosterConfirm} onClose={() => setShowAiPoster(false)} />
+      <AiPosterModal visible={showAiPoster} onConfirm={handleAiPosterConfirm} onClose={() => setShowAiPoster(false)} posterId={posterId} uid={uid} username={username} />
       <AnthemPickerModal visible={showAnthemPicker} onSelect={handleAnthemSelect} onClose={() => setShowAnthemPicker(false)} />
     </View>
   );
@@ -781,4 +808,6 @@ const styles = StyleSheet.create({
   stampConfirmText: { color: Colors.navyDeep, fontWeight: "800", fontSize: 12, letterSpacing: 2 },
   stampCancelBtn: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, backgroundColor: Colors.error + "18", borderWidth: 1, borderColor: Colors.error + "66", borderRadius: Radii.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm },
   stampCancelText: { color: Colors.error, fontWeight: "800", fontSize: 12, letterSpacing: 2 },
+  playgroundBanner: { height: 28, backgroundColor: Colors.warning + "22", borderWidth: 1, borderColor: Colors.warning + "66", borderRadius: Radii.md, justifyContent: "center", alignItems: "center", marginBottom: Spacing.sm },
+  playgroundText: { color: Colors.warning, fontWeight: "800", fontSize: 10, letterSpacing: 1.5 },
 });
