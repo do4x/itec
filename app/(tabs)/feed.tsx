@@ -117,6 +117,8 @@ export default function FeedScreen() {
               posterName={activity.posterName}
               timestamp={timeAgo(activity.timestamp)}
               index={i}
+              targetUsername={activity.targetUsername}
+              targetTeamId={activity.targetTeamId as TeamId | undefined}
             />
           ))
         )}

@@ -7,7 +7,11 @@ export type ActivityType =
   | "gif"
   | "ai_poster"
   | "anthem"
-  | "territory_change";
+  | "territory_change"
+  | "gif_delete"
+  | "pixel_delete"
+  | "anthem_override"
+  | "poster_complete";
 
 interface ActivityEntry {
   type: ActivityType;

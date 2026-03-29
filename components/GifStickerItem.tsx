@@ -20,6 +20,10 @@ export interface CanvasGif {
   y: number;        // centrul GIF-ului pe canvas (Y)
   scale: number;
   rotation: number; // radiani
+  uid?: string;
+  teamId?: string;
+  username?: string;
+  type?: "gif" | "ai_poster";
 }
 
 interface Props {

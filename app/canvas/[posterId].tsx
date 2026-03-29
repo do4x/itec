@@ -41,6 +41,7 @@ import GraffitiPicker from "@/components/GraffitiPicker";
 import AiPosterModal from "@/components/AiPosterModal";
 import { GraffitiPattern } from "@/constants/graffiti-patterns";
 import { logActivity } from "@/lib/notifications";
+import { calculateTerritory } from "@/lib/territory";
 import { POSTER_IMAGES } from "@/constants/poster-images";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -97,6 +98,9 @@ export default function CanvasScreen() {
 
   // Glitch state
   const glitchX = useSharedValue(0);
+
+  // Territory tracking (pentru territory_change detection)
+  const prevLeaderRef = useRef<string | null>(null);
   const glitchStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: glitchX.value }],
   }));
@@ -152,6 +156,7 @@ export default function CanvasScreen() {
       const data = snapshot.val() ?? {};
       const list: CanvasGif[] = Object.entries(data).map(([id, val]: [string, any]) => ({
         id, url: val.url, x: val.x, y: val.y, scale: val.scale, rotation: val.rotation ?? 0,
+        uid: val.uid, teamId: val.teamId, username: val.username, type: val.type,
       }));
       setGifs(list);
     });
@@ -193,6 +198,11 @@ export default function CanvasScreen() {
       remove(ref(db, `posters/${posterId}/pixels/${key}`));
       setPixels((prev) => { const n = new Map(prev); n.delete(key); return n; });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      logActivity({
+        type: "pixel_delete",
+        username, teamId, posterId,
+        ...(existing.uid !== uid ? { targetUsername: existing.username, targetTeamId: existing.teamId } : {}),
+      });
       return;
     }
 
@@ -209,6 +219,25 @@ export default function CanvasScreen() {
         type: isOverride ? "pixel_override" : "pixel",
         username, teamId, posterId,
         ...(isOverride ? { targetUsername: existing.username, targetTeamId: existing.teamId } : {}),
+      });
+      // Detectează schimbare de lider teritorial
+      setPixels((prev) => {
+        const pixelsObj: Record<string, any> = {};
+        prev.forEach((v, k) => { pixelsObj[k] = v; });
+        pixelsObj[key] = pixelData;
+        const territory = calculateTerritory(pixelsObj);
+        const newLeader = territory.dominantTeam;
+        if (newLeader && newLeader !== prevLeaderRef.current) {
+          prevLeaderRef.current = newLeader;
+          const totalCells = 40 * 57;
+          const leaderPixels = territory.scores[newLeader] ?? 0;
+          if (leaderPixels >= totalCells) {
+            logActivity({ type: "poster_complete", username, teamId, posterId });
+          } else {
+            logActivity({ type: "territory_change", username, teamId, posterId });
+          }
+        }
+        return prev;
       });
     }
   }, [posterId, uid, activeTool, brushColor, teamId, username, spend, pixels]);
@@ -246,11 +275,19 @@ export default function CanvasScreen() {
     if (isGuest) { warnGuest(); return; }
     const ok = await spend(150);
     if (!ok) { Alert.alert("Tokens insuficiente", "Ai nevoie de 150 tokens pt a sterge."); return; }
+    const gif = gifs.find((g) => g.id === id);
     setGifs((prev) => prev.filter((g) => g.id !== id));
     setSelectedGifId(null);
     remove(ref(db, `posters/${posterId}/gifs/${id}`));
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  }, [posterId, spend]);
+    if (gif) {
+      logActivity({
+        type: "gif_delete",
+        username, teamId, posterId,
+        ...(gif.teamId && gif.teamId !== teamId ? { targetUsername: gif.username, targetTeamId: gif.teamId } : {}),
+      });
+    }
+  }, [posterId, spend, gifs, username, teamId]);
 
   const handleSelectGif = useCallback((id: string | null) => setSelectedGifId(id), []);
 
@@ -353,7 +390,12 @@ export default function CanvasScreen() {
       artist: track.artist_name,
     });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    logActivity({ type: "anthem", username, teamId, posterId });
+    const isOverride = anthem?.teamId && anthem.teamId !== teamId;
+    logActivity({
+      type: isOverride ? "anthem_override" : "anthem",
+      username, teamId, posterId,
+      ...(isOverride ? { targetTeamId: anthem.teamId } : {}),
+    });
     setShowAnthemPicker(false);
   }, [posterId, teamId, uid, username, spend]);
 

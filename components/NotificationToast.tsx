@@ -1,6 +1,12 @@
 import React, { useEffect } from "react";
-import { Text, StyleSheet } from "react-native";
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSequence, runOnJS } from "react-native-reanimated";
+import { Text, StyleSheet, View } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSequence,
+  runOnJS,
+} from "react-native-reanimated";
 import { Colors, Spacing, Radii } from "@/constants/theme";
 
 interface NotificationToastProps {
@@ -8,17 +14,39 @@ interface NotificationToastProps {
   type: "info" | "warning" | "success";
   visible: boolean;
   onHide: () => void;
+  glitch?: boolean;
 }
 
-export default function NotificationToast({ message, type, visible, onHide }: NotificationToastProps) {
+export default function NotificationToast({ message, type, visible, onHide, glitch = false }: NotificationToastProps) {
   const translateY = useSharedValue(-100);
   const opacity = useSharedValue(0);
+  const glitchX = useSharedValue(0);
+  const glitchOpacity = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
       translateY.value = withTiming(0, { duration: 300 });
       opacity.value = withTiming(1, { duration: 300 });
-      // Auto-hide after 3 seconds
+
+      if (glitch) {
+        // Shake animation
+        glitchX.value = withSequence(
+          withTiming(-4, { duration: 50 }),
+          withTiming(4, { duration: 50 }),
+          withTiming(-3, { duration: 50 }),
+          withTiming(3, { duration: 50 }),
+          withTiming(-2, { duration: 50 }),
+          withTiming(0, { duration: 50 })
+        );
+        // Ghost layers flash
+        glitchOpacity.value = withSequence(
+          withTiming(1, { duration: 60 }),
+          withTiming(0, { duration: 120 }),
+          withTiming(0.7, { duration: 60 }),
+          withTiming(0, { duration: 120 })
+        );
+      }
+
       const timer = setTimeout(() => {
         translateY.value = withTiming(-100, { duration: 300 });
         opacity.value = withSequence(
@@ -31,8 +59,18 @@ export default function NotificationToast({ message, type, visible, onHide }: No
   }, [visible]);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
+    transform: [{ translateY: translateY.value }, { translateX: glitchX.value }],
     opacity: opacity.value,
+  }));
+
+  const cyanGhostStyle = useAnimatedStyle(() => ({
+    opacity: glitchOpacity.value * 0.6,
+    transform: [{ translateX: -glitchX.value * 2 }],
+  }));
+
+  const redGhostStyle = useAnimatedStyle(() => ({
+    opacity: glitchOpacity.value * 0.5,
+    transform: [{ translateX: glitchX.value * 1.5 }],
   }));
 
   const bgColor = type === "warning" ? Colors.error + "DD" : type === "success" ? Colors.success + "DD" : Colors.itecBlue + "DD";
@@ -41,6 +79,12 @@ export default function NotificationToast({ message, type, visible, onHide }: No
 
   return (
     <Animated.View style={[styles.toast, { backgroundColor: bgColor }, animatedStyle]}>
+      {glitch && (
+        <>
+          <Animated.Text style={[styles.text, styles.ghostCyan, cyanGhostStyle]}>{message}</Animated.Text>
+          <Animated.Text style={[styles.text, styles.ghostRed, redGhostStyle]}>{message}</Animated.Text>
+        </>
+      )}
       <Text style={styles.text}>{message}</Text>
     </Animated.View>
   );
@@ -58,4 +102,16 @@ const styles = StyleSheet.create({
     zIndex: 9999,
   },
   text: { color: Colors.white, fontWeight: "700", fontSize: 13, textAlign: "center", letterSpacing: 1 },
+  ghostCyan: {
+    position: "absolute",
+    left: Spacing.lg,
+    right: Spacing.lg,
+    color: Colors.teamCyan,
+  },
+  ghostRed: {
+    position: "absolute",
+    left: Spacing.lg,
+    right: Spacing.lg,
+    color: Colors.teamRed,
+  },
 });
