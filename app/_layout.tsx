@@ -13,6 +13,14 @@ export { ErrorBoundary };
 
 function GlobalToast() {
   const { toast, toastVisible, hideToast } = useNotificationToast();
+
+  const handleToastPress = () => {
+    if (toast?.actorUsername) {
+      hideToast();
+      router.push(`/player/${toast.actorUsername}` as any);
+    }
+  };
+
   return (
     <NotificationToast
       message={toast?.message ?? ""}
@@ -20,6 +28,7 @@ function GlobalToast() {
       visible={toastVisible}
       onHide={hideToast}
       glitch={toast?.glitch ?? false}
+      onPress={toast?.actorUsername ? handleToastPress : undefined}
     />
   );
 }
@@ -60,6 +69,7 @@ export default function RootLayout() {
             />
             <Stack.Screen name="calibrate" />
             <Stack.Screen name="gps-test" />
+            <Stack.Screen name="player/[username]" />
           </Stack>
           <GlobalToast />
           <StatusBar style="light" />

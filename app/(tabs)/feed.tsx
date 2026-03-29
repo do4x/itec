@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from "react-native";
+import { router } from "expo-router";
 import { useGame, TEAMS, TeamId } from "@/lib/game-state";
 import { db, ref, onValue } from "@/lib/firebase";
 import { POSTER_DESIGNS, DesignId } from "@/constants/poster-designs";
@@ -119,6 +120,7 @@ export default function FeedScreen() {
               index={i}
               targetUsername={activity.targetUsername}
               targetTeamId={activity.targetTeamId as TeamId | undefined}
+              onPress={() => router.push(`/player/${activity.username}` as any)}
             />
           ))
         )}

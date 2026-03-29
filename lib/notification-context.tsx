@@ -9,6 +9,7 @@ interface ToastState {
   message: string;
   type: "info" | "warning" | "success";
   glitch: boolean;
+  actorUsername: string;
 }
 
 interface NotificationContextValue {
@@ -130,6 +131,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           message: buildMessage(type, actorUsername, posterName, targetUser),
           type: "warning",
           glitch: true,
+          actorUsername,
         });
         setToastVisible(true);
         return;
@@ -142,6 +144,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           message: buildMessage(type, actorUsername, posterName),
           type: "success",
           glitch: false,
+          actorUsername,
         });
         setToastVisible(true);
       }

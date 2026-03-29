@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors, Spacing, Radii, Shadows, Typography } from "@/constants/theme";
 import { TEAMS, TeamId } from "@/lib/game-state";
@@ -28,6 +28,7 @@ interface ActivityCardProps {
   index?: number;
   targetUsername?: string;
   targetTeamId?: TeamId;
+  onPress?: () => void;
 }
 
 export default function ActivityCard({
@@ -39,6 +40,7 @@ export default function ActivityCard({
   index = 0,
   targetUsername,
   targetTeamId,
+  onPress,
 }: ActivityCardProps) {
   const teamColor = TEAMS[teamId]?.color ?? Colors.muted;
   const iconName = ACTION_ICONS[action] ?? "ellipse";
@@ -59,6 +61,7 @@ export default function ActivityCard({
   const actionText = ACTION_TEXT[action] ?? `acted on ${posterName}`;
 
   return (
+    <TouchableOpacity onPress={onPress} activeOpacity={onPress ? 0.75 : 1} disabled={!onPress}>
     <Animated.View
       entering={FadeInUp.duration(350).delay(index * 50)}
       style={[styles.card, { borderLeftColor: teamColor }]}
@@ -75,6 +78,7 @@ export default function ActivityCard({
         <Text style={styles.timestamp}>{timestamp}</Text>
       </View>
     </Animated.View>
+    </TouchableOpacity>
   );
 }
 

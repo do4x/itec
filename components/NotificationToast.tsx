@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Text, StyleSheet, View } from "react-native";
+import { Text, StyleSheet, View, TouchableOpacity } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -15,9 +15,10 @@ interface NotificationToastProps {
   visible: boolean;
   onHide: () => void;
   glitch?: boolean;
+  onPress?: () => void;
 }
 
-export default function NotificationToast({ message, type, visible, onHide, glitch = false }: NotificationToastProps) {
+export default function NotificationToast({ message, type, visible, onHide, glitch = false, onPress }: NotificationToastProps) {
   const translateY = useSharedValue(-100);
   const opacity = useSharedValue(0);
   const glitchX = useSharedValue(0);
@@ -86,6 +87,9 @@ export default function NotificationToast({ message, type, visible, onHide, glit
         </>
       )}
       <Text style={styles.text}>{message}</Text>
+      {onPress && (
+        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onPress} activeOpacity={0.85} />
+      )}
     </Animated.View>
   );
 }
